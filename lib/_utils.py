@@ -1,4 +1,11 @@
+import os
 import re
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+with open(os.path.join(THIS_DIR, "spacegroups.txt"), "rt") as f:
+    SPACE_GROUPS = [sg.strip() for sg in f.readlines()]
 
 
 ATOMS = ["Si", "C", "Pb", "I", "Br", "Cl", "Eu", "O", "Fe", "Sb", "In", "S", "N", "U", "Mn", "Lu", "Se", "Tl", "Hf",
@@ -39,31 +46,31 @@ KEYWORDS = [
 ]
 
 SYMBOLS = [
-    "x", "y", "z", ".", "(", ")", "'", ",", " ", "\n"
+    "x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"
 ]
 
 TOKENS = list(ATOMS)
 TOKENS.extend(DIGITS)
 TOKENS.extend(KEYWORDS)
 TOKENS.extend(SYMBOLS)
+TOKENS.extend(SPACE_GROUPS)
 
 UNK_TOKEN = "<unk>"
 
+ESCAPED_TOKENS = [re.escape(token) for token in TOKENS]
+ESCAPED_TOKENS.sort(key=len, reverse=True)
 
-def tokenize_cif(cif_string):
-    # Escape any special characters in the tokens
-    escaped_tokens = [re.escape(token) for token in TOKENS]
 
-    # Sort the escaped tokens by length in descending order
-    escaped_tokens.sort(key=len, reverse=True)
-
+def tokenize_cif(cif_string, single_spaces=True):
     # Create a regex pattern by joining the escaped tokens with '|'
-    token_pattern = '|'.join(escaped_tokens)
+    token_pattern = '|'.join(ESCAPED_TOKENS)
 
     # Add a regex pattern to match any sequence of characters separated by whitespace or punctuation
     full_pattern = f'({token_pattern}|\\w+|[\\.,;!?])'
 
     # Tokenize the input string using the regex pattern
+    if single_spaces:
+        cif_string = re.sub(r'[ \t]+', ' ', cif_string)
     tokens = re.findall(full_pattern, cif_string)
 
     # Replace unrecognized tokens with the unknown_token

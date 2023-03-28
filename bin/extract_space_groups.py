@@ -18,18 +18,15 @@ if __name__ == '__main__':
         lines = cif.split('\n')
         for line in lines:
             line = line.strip()
-            if len(line) > 0 and not line.startswith("#"):
+            if line.startswith("_symmetry_space_group_name_H-M"):
                 cif_lines.append(line)
 
-    keywords = set()
+    space_groups = set()
 
     for cif_line in tqdm(cif_lines):
-        tokens = cif_line.split(" ")
-        for t in tokens:
-            if t.startswith("_"):
-                keywords.add(t)
+        space_groups.add(cif_line.split("_symmetry_space_group_name_H-M")[1].strip())
 
-    for kw in keywords:
-        print(kw)
+    for sg in space_groups:
+        print(sg)
 
-    print(len(keywords))
+    print(len(space_groups))

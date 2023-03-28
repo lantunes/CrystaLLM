@@ -1,6 +1,4 @@
 import os
-import csv
-import gzip
 import numpy as np
 from tqdm import tqdm
 try:
@@ -12,26 +10,23 @@ from lib import tokenize_cif, encode, TOKEN_TO_ID, ID_TO_TOKEN
 
 
 if __name__ == '__main__':
-    fname = "../data/all_cif_structures.csv.gz"
+    fname = "../out/matproj_all_2022_04_12.cif.pkl"
+
+    with open(fname, "rb") as f:
+        cifs_raw = pickle.load(f)
 
     cifs = []
 
-    with gzip.open(fname, "rt") as f:
-        reader = csv.reader(f)
-        next(reader)  # skip header
-        for row in tqdm(reader):
-            mpid = row[0]
-            cif = row[1].replace('"', '')
-
-            # filter out some lines in the CIF
-            lines = cif.split('\\n')
-            cif_lines = []
-            for line in lines:
-                line = line.strip()
-                if len(line) > 0 and not line.startswith("#") and "pymatgen" not in line:
-                    cif_lines.append(line)
-            cif_lines.append("\n")
-            cifs.append("\n".join(cif_lines))
+    for cif in tqdm(cifs_raw):
+        # filter out some lines in the CIF
+        lines = cif.split('\n')
+        cif_lines = []
+        for line in lines:
+            line = line.strip()
+            if len(line) > 0 and not line.startswith("#") and "pymatgen" not in line:
+                cif_lines.append(line)
+        cif_lines.append("\n")
+        cifs.append("\n".join(cif_lines))
 
     tokenized_cifs = []
     for cif in tqdm(cifs):
@@ -62,6 +57,7 @@ if __name__ == '__main__':
     val_ids = encode(val_data)
     print(f"train has {len(train_ids):,} tokens")
     print(f"val has {len(val_ids):,} tokens")
+    print(f"vocab size: {len(TOKEN_TO_ID)}")
 
     # export to bin files
     train_ids = np.array(train_ids, dtype=np.uint16)
