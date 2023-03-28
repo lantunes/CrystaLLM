@@ -15,6 +15,8 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+from lib import TOKEN_TO_ID
+
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
     """
@@ -347,6 +349,8 @@ class GPT(nn.Module):
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
+        newline_id = TOKEN_TO_ID["\n"]
+        prev_id = None
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
@@ -364,5 +368,9 @@ class GPT(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1)
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
+            # a sequence of two newlines indicates the end of a CIF file
+            if prev_id is not None and prev_id == newline_id and idx_next.item() == newline_id:
+                break
+            prev_id = idx_next.item()
 
         return idx

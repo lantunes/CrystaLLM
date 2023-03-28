@@ -55,3 +55,6 @@ primarily for atomic symbols
 - The Materials Project .cif files in `all_cif_structures.csv.gz` are apparently not symmetrized, and all space groups
 are the same value of 'P 1'; but if we download a symmetrized .cif from the site, it will contain differnt space groups
 - there are no oxidation states on the atoms in `all_cif_structures.csv.gz`
+
+- How do we deal with under-representation of certain atoms? There's a lot of Oxygen in the dataset, and the model
+tends to generate many Oxygen atoms
