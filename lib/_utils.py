@@ -1,5 +1,6 @@
 import os
 import re
+from abc import abstractmethod
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -45,53 +46,128 @@ KEYWORDS = [
     "data_"
 ]
 
-SYMBOLS = [
-    "x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"
-]
-
-TOKENS = list(ATOMS)
-TOKENS.extend(DIGITS)
-TOKENS.extend(KEYWORDS)
-TOKENS.extend(SYMBOLS)
-TOKENS.extend(SPACE_GROUPS)
-
 UNK_TOKEN = "<unk>"
 
-ESCAPED_TOKENS = [re.escape(token) for token in TOKENS]
-ESCAPED_TOKENS.sort(key=len, reverse=True)
+
+class CIFTokenizer:
+    def __init__(self):
+        self._tokens = list(self.atoms())
+        self._tokens.extend(self.digits())
+        self._tokens.extend(self.keywords())
+        self._tokens.extend(self.symbols())
+        self._tokens.extend(self.space_groups())
+
+        self._escaped_tokens = [re.escape(token) for token in self._tokens]
+        self._escaped_tokens.sort(key=len, reverse=True)
+
+        self._tokens_with_unk = list(self._tokens)
+        self._tokens_with_unk.append(UNK_TOKEN)
+
+        # a mapping from characters to integers
+        self._token_to_id = {ch: i for i, ch in enumerate(self._tokens_with_unk)}
+        self._id_to_token = {i: ch for i, ch in enumerate(self._tokens_with_unk)}
+
+    @abstractmethod
+    def atoms(self):
+        pass
+
+    @abstractmethod
+    def digits(self):
+        pass
+
+    @abstractmethod
+    def keywords(self):
+        pass
+
+    @abstractmethod
+    def symbols(self):
+        pass
+
+    @abstractmethod
+    def space_groups(self):
+        pass
+
+    @property
+    def token_to_id(self):
+        return dict(self._token_to_id)
+
+    @property
+    def id_to_token(self):
+        return dict(self._id_to_token)
+
+    def encode(self, s):
+        # encoder: take a string, output a list of integers
+        return [self._token_to_id[c] for c in s]
+
+    def decode(self, l):
+        # decoder: take a list of integers, output a string
+        return ''.join([self._id_to_token[i] for i in l])
+
+    def tokenize_cif(self, cif_string, single_spaces=True):
+        # Create a regex pattern by joining the escaped tokens with '|'
+        token_pattern = '|'.join(self._escaped_tokens)
+
+        # Add a regex pattern to match any sequence of characters separated by whitespace or punctuation
+        full_pattern = f'({token_pattern}|\\w+|[\\.,;!?])'
+
+        # Tokenize the input string using the regex pattern
+        if single_spaces:
+            cif_string = re.sub(r'[ \t]+', ' ', cif_string)
+        tokens = re.findall(full_pattern, cif_string)
+
+        # Replace unrecognized tokens with the unknown_token
+        tokens = [token if token in self._tokens else UNK_TOKEN for token in tokens]
+
+        return tokens
 
 
-def tokenize_cif(cif_string, single_spaces=True):
-    # Create a regex pattern by joining the escaped tokens with '|'
-    token_pattern = '|'.join(ESCAPED_TOKENS)
+class CIFSymmTokenizer(CIFTokenizer):
+    def __init__(self):
+        super().__init__()
 
-    # Add a regex pattern to match any sequence of characters separated by whitespace or punctuation
-    full_pattern = f'({token_pattern}|\\w+|[\\.,;!?])'
+    def atoms(self):
+        return ATOMS
 
-    # Tokenize the input string using the regex pattern
-    if single_spaces:
-        cif_string = re.sub(r'[ \t]+', ' ', cif_string)
-    tokens = re.findall(full_pattern, cif_string)
+    def digits(self):
+        return DIGITS
 
-    # Replace unrecognized tokens with the unknown_token
-    tokens = [token if token in TOKENS else UNK_TOKEN for token in tokens]
+    def keywords(self):
+        return KEYWORDS
 
-    return tokens
+    def symbols(self):
+        return ["x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"]
 
-
-TOKENS_WITH_UNK = list(TOKENS)
-TOKENS_WITH_UNK.append(UNK_TOKEN)
-
-# a mapping from characters to integers
-TOKEN_TO_ID = {ch: i for i, ch in enumerate(TOKENS_WITH_UNK)}
-ID_TO_TOKEN = {i: ch for i, ch in enumerate(TOKENS_WITH_UNK)}
+    def space_groups(self):
+        return SPACE_GROUPS
 
 
-def encode(s):
-    # encoder: take a string, output a list of integers
-    return [TOKEN_TO_ID[c] for c in s]
+class CIFNoSymmTokenizer(CIFTokenizer):
+    def __init__(self):
+        super().__init__()
+
+    def atoms(self):
+        return ATOMS
+
+    def digits(self):
+        return DIGITS
+
+    def keywords(self):
+        return KEYWORDS
+
+    def symbols(self):
+        return ["x", "y", "z", ".", "(", ")", "'", ",", " ", "\n"]
+
+    def space_groups(self):
+        return []
 
 
-def decode(l):
-    # decoder: take a list of integers, output a string
-    return ''.join([ID_TO_TOKEN[i] for i in l])
+CIFTokenizers = {
+    "symm": CIFSymmTokenizer(),
+    "nosymm": CIFNoSymmTokenizer()
+}
+
+
+def get_cif_tokenizer(symmetrized):
+    return CIFTokenizers["symm" if symmetrized else "nosymm"]
+
+

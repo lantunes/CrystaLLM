@@ -1,1 +1,1 @@
-from ._utils import tokenize_cif, encode, decode, TOKEN_TO_ID, ID_TO_TOKEN
+from ._utils import get_cif_tokenizer

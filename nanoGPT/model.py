@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from lib import TOKEN_TO_ID
+from lib import get_cif_tokenizer
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
@@ -345,13 +345,14 @@ class GPT(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, symmetrized=True):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
-        newline_id = TOKEN_TO_ID["\n"]
+        tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
+        newline_id = tokenizer.token_to_id["\n"]
         prev_id = None
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size

@@ -6,11 +6,18 @@ try:
 except ImportError:
     import pickle
 
-from lib import tokenize_cif, encode, TOKEN_TO_ID, ID_TO_TOKEN
+from lib import get_cif_tokenizer
 
 
 if __name__ == '__main__':
-    fname = "../out/matproj_all_2022_04_12.cif.pkl"
+    fname = "../out/matproj_all_2022_04_12.cif_nosymm.pkl"
+    out_dir = "../out/mp_cifs_nosymm"
+    symmetrized = False
+
+    tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     with open(fname, "rb") as f:
         cifs_raw = pickle.load(f)
@@ -30,7 +37,7 @@ if __name__ == '__main__':
 
     tokenized_cifs = []
     for cif in tqdm(cifs):
-        tokenized_cifs.append(tokenize_cif(cif))
+        tokenized_cifs.append(tokenizer.tokenize_cif(cif))
 
     lens = [len(t) for t in tokenized_cifs]
     unk_counts = [t.count("<unk>") for t in tokenized_cifs]
@@ -53,23 +60,23 @@ if __name__ == '__main__':
     val_data = data[int(n * 0.9):]
 
     # encode both to integers
-    train_ids = encode(train_data)
-    val_ids = encode(val_data)
+    train_ids = tokenizer.encode(train_data)
+    val_ids = tokenizer.encode(val_data)
     print(f"train has {len(train_ids):,} tokens")
     print(f"val has {len(val_ids):,} tokens")
-    print(f"vocab size: {len(TOKEN_TO_ID)}")
+    print(f"vocab size: {len(tokenizer.token_to_id)}")
 
     # export to bin files
     train_ids = np.array(train_ids, dtype=np.uint16)
     val_ids = np.array(val_ids, dtype=np.uint16)
-    train_ids.tofile(os.path.join(os.path.dirname(__file__), '../out/train.bin'))
-    val_ids.tofile(os.path.join(os.path.dirname(__file__), '../out/val.bin'))
+    train_ids.tofile(os.path.join(os.path.dirname(__file__), os.path.join(out_dir, 'train.bin')))
+    val_ids.tofile(os.path.join(os.path.dirname(__file__), os.path.join(out_dir, 'val.bin')))
 
     # save the meta information as well, to help us encode/decode later
     meta = {
-        'vocab_size': len(TOKEN_TO_ID),
-        'itos': ID_TO_TOKEN,
-        'stoi': TOKEN_TO_ID,
+        'vocab_size': len(tokenizer.token_to_id),
+        'itos': tokenizer.id_to_token,
+        'stoi': tokenizer.token_to_id,
     }
-    with open(os.path.join(os.path.dirname(__file__), '../out/meta.pkl'), 'wb') as f:
+    with open(os.path.join(os.path.dirname(__file__), os.path.join(out_dir, 'meta.pkl')), 'wb') as f:
         pickle.dump(meta, f)

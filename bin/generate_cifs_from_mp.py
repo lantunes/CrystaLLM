@@ -11,7 +11,8 @@ except ImportError:
 if __name__ == '__main__':
     # NOTE: this file is located at s3://crystalgpt-data/matproj_all_2022_04_12.pkl
     fname = "../out/matproj_all_2022_04_12.pkl"
-    out_file = "../out/matproj_all_2022_04_12.cif.pkl"
+    out_file = "../out/matproj_all_2022_04_12.cif_nosymm.pkl"
+    symmetrize = False
 
     df = pd.read_pickle(fname)
 
@@ -19,7 +20,7 @@ if __name__ == '__main__':
 
     for i in tqdm(range(len(df['structure']))):
         struct = df['structure'][i]
-        cif = CifWriter(struct, symprec=0.001)
+        cif = CifWriter(struct, symprec=0.001 if symmetrize else None)
         cifs.append(str(cif))
 
     with open(out_file, 'wb') as f:
