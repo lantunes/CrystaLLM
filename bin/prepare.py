@@ -22,6 +22,8 @@ if __name__ == '__main__':
     with open(fname, "rb") as f:
         cifs_raw = pickle.load(f)
 
+    # TODO shuffle the order of the cifs_raw; produce mp_oqmd_cifs_nosymm_v2
+
     cifs = []
 
     for cif in tqdm(cifs_raw):
