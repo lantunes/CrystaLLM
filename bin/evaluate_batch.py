@@ -169,3 +169,10 @@ if __name__ == '__main__':
     print(f"cell_volume: "
           f"MAE: {mean_absolute_error(cell_volume['true'], cell_volume['predicted']):.4f}, "
           f"R2: {r2_score(cell_volume['true'], cell_volume['predicted']):.2f}")
+
+    # TODO write out .csv with model's predictions, so that we can get a file like cif_model_8.eval.csv;
+    #  what about the failure cases? what values should we enter in the .csv? nan?
+    #  perhaps we should only write out a line for a successful case; we'll keep track of
+    #  compositions, with `cell_length_a = {"comp": [], "true": [], "predicted": []}`; then the client
+    #  comparing the eval.csv to the "cif_model_8.eval.csv" will have to use only the compositions in eval.csv
+    #  that are in "cif_model_8.eval.csv"
