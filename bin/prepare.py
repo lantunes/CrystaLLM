@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import random
 from tqdm import tqdm
 try:
     import cPickle as pickle
@@ -10,8 +11,8 @@ from lib import get_cif_tokenizer
 
 
 if __name__ == '__main__':
-    fname = "../out/matproj_all_2022_04_12.cif_nosymm.pkl"
-    out_dir = "../out/mp_cifs_nosymm"
+    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_nosymm.pkl"
+    out_dir = "../out/mp_oqmd_cifs_nosymm_v2"
     symmetrized = False
 
     tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
@@ -22,7 +23,8 @@ if __name__ == '__main__':
     with open(fname, "rb") as f:
         cifs_raw = pickle.load(f)
 
-    # TODO shuffle the order of the cifs_raw; produce mp_oqmd_cifs_nosymm_v2
+    # shuffle the order of the CIFS
+    random.shuffle(cifs_raw)
 
     cifs = []
 

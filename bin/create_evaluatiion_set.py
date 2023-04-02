@@ -10,8 +10,8 @@ since the model didn't directly see the CIFs of the validation set in
 training. 
 """
 if __name__ == '__main__':
-    validation_set_fname = "../out/mp_oqmd_cifs_nosymm/val.bin"
-    out_file = "../out/mp_oqmd_cifs_nosymm/eval.csv"
+    validation_set_fname = "../out/mp_oqmd_cifs_nosymm_v2/val.bin"
+    out_file = "../out/mp_oqmd_cifs_nosymm_v2/eval.csv"
     n = 10_000  # the number of CIFs to randomly select to include in the evaluation set
     symmetrized = False
 
