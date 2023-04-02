@@ -47,8 +47,18 @@ class CIFData:
         data.cell_volume = float(row[7])
         return data
 
+    def is_valid(self):
+        return self.composition is not None and \
+               self.cell_length_a is not None and \
+               self.cell_length_b is not None and \
+               self.cell_length_c is not None and \
+               self.cell_angle_alpha is not None and \
+               self.cell_angle_beta is not None and \
+               self.cell_angle_gamma is not None and \
+               self.cell_volume is not None
 
-def populate_cif_data(cif_data, cif):
+
+def populate_cif_data(cif_data, cif, validate=False):
     for line in cif.split("\n"):
         if line.startswith("data_"):
             cif_data.composition = line.split("_")[1]
@@ -66,3 +76,6 @@ def populate_cif_data(cif_data, cif):
             cif_data.cell_angle_gamma = float(line.split(" ")[1].strip())
         elif line.startswith("_cell_volume"):
             cif_data.cell_volume = float(line.split(" ")[1].strip())
+
+    if validate and not cif_data.is_valid():
+        raise Exception("invalid CIFData")
