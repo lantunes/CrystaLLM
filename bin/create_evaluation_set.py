@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".")
 import numpy as np
 from lib import get_cif_tokenizer, CIFData, populate_cif_data
 from tqdm import tqdm
@@ -47,24 +49,6 @@ if __name__ == '__main__':
 
     with open(out_file, "wt") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "composition",
-            "cell_length_a",
-            "cell_length_b",
-            "cell_length_c",
-            "cell_angle_alpha",
-            "cell_angle_beta",
-            "cell_angle_gamma",
-            "cell_volume"
-        ])
+        writer.writerow(CIFData.csv_columns())
         for i in selected_i:
-            writer.writerow([
-                cif_datas[i].composition,
-                cif_datas[i].cell_length_a,
-                cif_datas[i].cell_length_b,
-                cif_datas[i].cell_length_c,
-                cif_datas[i].cell_angle_alpha,
-                cif_datas[i].cell_angle_beta,
-                cif_datas[i].cell_angle_gamma,
-                cif_datas[i].cell_volume
-            ])
+            writer.writerow(cif_datas[i].to_csv_row())

@@ -4,15 +4,21 @@ import os
 import argparse
 import csv
 from lib import CIFData, populate_cif_data
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
 from tqdm import tqdm
 
-import pickle
 from contextlib import nullcontext
 import torch
 from nanoGPT.model import GPTConfig, GPT
 
-from lib import get_cif_tokenizer
+from lib import get_cif_tokenizer, abs_r_score
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
+import warnings
+warnings.filterwarnings("ignore")
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -22,6 +28,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--model_dir', type=str, required=True, help='Model directory')
     parser.add_argument('--eval_file', type=str, required=True, help='eval.csv file')
+    parser.add_argument('--out_file', type=str, required=True, help='output file location')
     parser.add_argument('--symmetrized', action='store_true', default=False, help='Symmetrized flag')
     parser.add_argument('--top_k', type=int, default=10, help='Top K value')
     parser.add_argument('--max_new_tokens', type=int, default=500, help='Maximum new tokens')
@@ -31,6 +38,7 @@ if __name__ == '__main__':
 
     model_dir = args.model_dir
     eval_fname = args.eval_file
+    out_file = args.out_file
     symmetrized = args.symmetrized
     top_k = args.top_k
     max_new_tokens = args.max_new_tokens
@@ -83,13 +91,20 @@ if __name__ == '__main__':
     n_evaluations = 0
     n_failures = 0
 
-    cell_length_a = {"true": [], "predicted": []}
-    cell_length_b = {"true": [], "predicted": []}
-    cell_length_c = {"true": [], "predicted": []}
-    cell_angle_alpha = {"true": [], "predicted": []}
-    cell_angle_beta = {"true": [], "predicted": []}
-    cell_angle_gamma = {"true": [], "predicted": []}
-    cell_volume = {"true": [], "predicted": []}
+    vals = {
+        "comp": [],
+        "evaluations": 0,
+        "failures": 0,
+        "space_group": {"true": [], "predicted": []},
+        "space_group_num": {"true": [], "predicted": []},
+        "cell_length_a": {"true": [], "predicted": []},
+        "cell_length_b": {"true": [], "predicted": []},
+        "cell_length_c": {"true": [], "predicted": []},
+        "cell_angle_alpha": {"true": [], "predicted": []},
+        "cell_angle_beta": {"true": [], "predicted": []},
+        "cell_angle_gamma": {"true": [], "predicted": []},
+        "cell_volume": {"true": [], "predicted": []},
+    }
 
     with open(eval_fname, "rt") as f:
         reader = csv.reader(f)
@@ -117,62 +132,82 @@ if __name__ == '__main__':
                 n_failures += 1
                 continue
 
-            cell_length_a["true"].append(cif_data.cell_length_a)
-            cell_length_a["predicted"].append(predicted_data.cell_length_a)
+            vals["comp"].append(cif_data.composition)
 
-            cell_length_b["true"].append(cif_data.cell_length_b)
-            cell_length_b["predicted"].append(predicted_data.cell_length_b)
+            vals["space_group"]["true"].append(cif_data.space_group)
+            vals["space_group"]["predicted"].append(predicted_data.space_group)
 
-            cell_length_c["true"].append(cif_data.cell_length_c)
-            cell_length_c["predicted"].append(predicted_data.cell_length_c)
+            vals["space_group_num"]["true"].append(cif_data.space_group_num)
+            vals["space_group_num"]["predicted"].append(predicted_data.space_group_num)
 
-            cell_angle_alpha["true"].append(cif_data.cell_angle_alpha)
-            cell_angle_alpha["predicted"].append(predicted_data.cell_angle_alpha)
+            vals["cell_length_a"]["true"].append(cif_data.cell_length_a)
+            vals["cell_length_a"]["predicted"].append(predicted_data.cell_length_a)
 
-            cell_angle_beta["true"].append(cif_data.cell_angle_beta)
-            cell_angle_beta["predicted"].append(predicted_data.cell_angle_beta)
+            vals["cell_length_b"]["true"].append(cif_data.cell_length_b)
+            vals["cell_length_b"]["predicted"].append(predicted_data.cell_length_b)
 
-            cell_angle_gamma["true"].append(cif_data.cell_angle_gamma)
-            cell_angle_gamma["predicted"].append(predicted_data.cell_angle_gamma)
+            vals["cell_length_c"]["true"].append(cif_data.cell_length_c)
+            vals["cell_length_c"]["predicted"].append(predicted_data.cell_length_c)
 
-            cell_volume["true"].append(cif_data.cell_volume)
-            cell_volume["predicted"].append(predicted_data.cell_volume)
+            vals["cell_angle_alpha"]["true"].append(cif_data.cell_angle_alpha)
+            vals["cell_angle_alpha"]["predicted"].append(predicted_data.cell_angle_alpha)
+
+            vals["cell_angle_beta"]["true"].append(cif_data.cell_angle_beta)
+            vals["cell_angle_beta"]["predicted"].append(predicted_data.cell_angle_beta)
+
+            vals["cell_angle_gamma"]["true"].append(cif_data.cell_angle_gamma)
+            vals["cell_angle_gamma"]["predicted"].append(predicted_data.cell_angle_gamma)
+
+            vals["cell_volume"]["true"].append(cif_data.cell_volume)
+            vals["cell_volume"]["predicted"].append(predicted_data.cell_volume)
 
     print(f"model_dir: {model_dir}")
     print(f"eval_file: {eval_fname}")
     print(f"evaluations: {n_evaluations:,}, failures: {n_failures:,}")
 
+    vals["evaluations"] = n_evaluations
+    vals["failures"] = n_failures
+
+    print(f"space_group: "
+          f"accuracy: {accuracy_score(vals['space_group']['true'], vals['space_group']['predicted']):.3f}")
+
+    print(f"space_group_num: "
+          f"accuracy: {accuracy_score(vals['space_group_num']['true'], vals['space_group_num']['predicted']):.3f}")
+
     print(f"cell_length_a: "
-          f"MAE: {mean_absolute_error(cell_length_a['true'], cell_length_a['predicted']):.4f}, "
-          f"R2: {r2_score(cell_length_a['true'], cell_length_a['predicted']):.2f}")
+          f"MAE: {mean_absolute_error(vals['cell_length_a']['true'], vals['cell_length_a']['predicted']):.4f}, "
+          f"R2: {r2_score(vals['cell_length_a']['true'], vals['cell_length_a']['predicted']):.2f}, "
+          f"|R|: {abs_r_score(vals['cell_length_a']['true'], vals['cell_length_a']['predicted']):.2f}")
 
     print(f"cell_length_b: "
-          f"MAE: {mean_absolute_error(cell_length_b['true'], cell_length_b['predicted']):.4f}, "
-          f"R2: {r2_score(cell_length_b['true'], cell_length_b['predicted']):.2f}")
+          f"MAE: {mean_absolute_error(vals['cell_length_b']['true'], vals['cell_length_b']['predicted']):.4f}, "
+          f"R2: {r2_score(vals['cell_length_b']['true'], vals['cell_length_b']['predicted']):.2f}, "
+          f"|R|: {abs_r_score(vals['cell_length_b']['true'], vals['cell_length_b']['predicted']):.2f}")
 
     print(f"cell_length_c: "
-          f"MAE: {mean_absolute_error(cell_length_c['true'], cell_length_c['predicted']):.4f}, "
-          f"R2: {r2_score(cell_length_c['true'], cell_length_c['predicted']):.2f}")
+          f"MAE: {mean_absolute_error(vals['cell_length_c']['true'], vals['cell_length_c']['predicted']):.4f}, "
+          f"R2: {r2_score(vals['cell_length_c']['true'], vals['cell_length_c']['predicted']):.2f}, "
+          f"|R|: {abs_r_score(vals['cell_length_c']['true'], vals['cell_length_c']['predicted']):.2f}")
 
     print(f"cell_angle_alpha: "
-          f"MAE: {mean_absolute_error(cell_angle_alpha['true'], cell_angle_alpha['predicted']):.4f}, "
-          f"R2: {r2_score(cell_angle_alpha['true'], cell_angle_alpha['predicted']):.2f}")
+          f"MAE: {mean_absolute_error(vals['cell_angle_alpha']['true'], vals['cell_angle_alpha']['predicted']):.4f}, "
+          f"R2: {r2_score(vals['cell_angle_alpha']['true'], vals['cell_angle_alpha']['predicted']):.2f}, "
+          f"|R|: {abs_r_score(vals['cell_angle_alpha']['true'], vals['cell_angle_alpha']['predicted']):.2f}")
 
     print(f"cell_angle_beta: "
-          f"MAE: {mean_absolute_error(cell_angle_beta['true'], cell_angle_beta['predicted']):.4f}, "
-          f"R2: {r2_score(cell_angle_beta['true'], cell_angle_beta['predicted']):.2f}")
+          f"MAE: {mean_absolute_error(vals['cell_angle_beta']['true'], vals['cell_angle_beta']['predicted']):.4f}, "
+          f"R2: {r2_score(vals['cell_angle_beta']['true'], vals['cell_angle_beta']['predicted']):.2f}, "
+          f"|R|: {abs_r_score(vals['cell_angle_beta']['true'], vals['cell_angle_beta']['predicted']):.2f}")
 
     print(f"cell_angle_gamma: "
-          f"MAE: {mean_absolute_error(cell_angle_gamma['true'], cell_angle_gamma['predicted']):.4f}, "
-          f"R2: {r2_score(cell_angle_gamma['true'], cell_angle_gamma['predicted']):.2f}")
+          f"MAE: {mean_absolute_error(vals['cell_angle_gamma']['true'], vals['cell_angle_gamma']['predicted']):.4f}, "
+          f"R2: {r2_score(vals['cell_angle_gamma']['true'], vals['cell_angle_gamma']['predicted']):.2f}, "
+          f"|R|: {abs_r_score(vals['cell_angle_gamma']['true'], vals['cell_angle_gamma']['predicted']):.2f}")
 
     print(f"cell_volume: "
-          f"MAE: {mean_absolute_error(cell_volume['true'], cell_volume['predicted']):.4f}, "
-          f"R2: {r2_score(cell_volume['true'], cell_volume['predicted']):.2f}")
+          f"MAE: {mean_absolute_error(vals['cell_volume']['true'], vals['cell_volume']['predicted']):.4f}, "
+          f"R2: {r2_score(vals['cell_volume']['true'], vals['cell_volume']['predicted']):.2f}, "
+          f"|R|: {abs_r_score(vals['cell_volume']['true'], vals['cell_volume']['predicted']):.2f}")
 
-    # TODO write out .csv with model's predictions, so that we can get a file like cif_model_8.eval.csv;
-    #  what about the failure cases? what values should we enter in the .csv? nan?
-    #  perhaps we should only write out a line for a successful case; we'll keep track of
-    #  compositions, with `cell_length_a = {"comp": [], "true": [], "predicted": []}`; then the client
-    #  comparing the eval.csv to the "cif_model_8.eval.csv" will have to use only the compositions in eval.csv
-    #  that are in "cif_model_8.eval.csv"
+    with open(out_file, 'wb') as f:
+        pickle.dump(vals, f)

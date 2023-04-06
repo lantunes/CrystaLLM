@@ -1,6 +1,10 @@
+import sys
+sys.path.append(".")
 import os
 import numpy as np
 import random
+import gzip
+import multiprocessing as mp
 from tqdm import tqdm
 try:
     import cPickle as pickle
@@ -10,17 +14,45 @@ except ImportError:
 from lib import get_cif_tokenizer
 
 
-if __name__ == '__main__':
-    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_nosymm.pkl"
-    out_dir = "../out/mp_oqmd_cifs_nosymm_v2"
-    symmetrized = False
+def array_split(arr, num_splits):
+    split_size, remainder = divmod(len(arr), num_splits)
+    splits = []
+    start = 0
+    for i in range(num_splits):
+        end = start + split_size + (i < remainder)
+        splits.append(arr[start:end])
+        start = end
+    return splits
 
+
+def progress_listener(queue, n):
+    pbar = tqdm(total=n)
+    while True:
+        message = queue.get()
+        if message == "kill":
+            break
+        pbar.update(message)
+
+
+def tokenize(chunk_of_cifs, symmetrized, queue):
     tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
+    tokenized = []
+    for cif in chunk_of_cifs:
+        queue.put(1)
+        tokenized.append(tokenizer.tokenize_cif(cif))
+    return tokenized
+
+
+if __name__ == '__main__':
+    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif.pkl.gz"
+    out_dir = "../out/mp_oqmd_cifs"
+    symmetrized = True
+    workers = 2
 
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    with open(fname, "rb") as f:
+    with gzip.open(fname, "rb") as f:
         cifs_raw = pickle.load(f)
 
     # shuffle the order of the CIFS
@@ -39,9 +71,25 @@ if __name__ == '__main__':
         cif_lines.append("\n")
         cifs.append("\n".join(cif_lines))
 
+    chunks = array_split(cifs, workers)
+    manager = mp.Manager()
+    queue = manager.Queue()
+    pool = mp.Pool(workers)
+    watcher = pool.apply_async(progress_listener, (queue, len(cifs),))
+
+    jobs = []
+    for i in range(workers):
+        chunk = chunks[i]
+        job = pool.apply_async(tokenize, (chunk, symmetrized, queue))
+        jobs.append(job)
+
     tokenized_cifs = []
-    for cif in tqdm(cifs):
-        tokenized_cifs.append(tokenizer.tokenize_cif(cif))
+    for job in jobs:
+        tokenized_cifs.extend(job.get())
+
+    queue.put("kill")
+    pool.close()
+    pool.join()
 
     lens = [len(t) for t in tokenized_cifs]
     unk_counts = [t.count("<unk>") for t in tokenized_cifs]
@@ -64,6 +112,7 @@ if __name__ == '__main__':
     val_data = data[int(n * 0.9):]
 
     # encode both to integers
+    tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
     train_ids = tokenizer.encode(train_data)
     val_ids = tokenizer.encode(val_data)
     print(f"train has {len(train_ids):,} tokens")
@@ -73,8 +122,8 @@ if __name__ == '__main__':
     # export to bin files
     train_ids = np.array(train_ids, dtype=np.uint16)
     val_ids = np.array(val_ids, dtype=np.uint16)
-    train_ids.tofile(os.path.join(os.path.dirname(__file__), os.path.join(out_dir, 'train.bin')))
-    val_ids.tofile(os.path.join(os.path.dirname(__file__), os.path.join(out_dir, 'val.bin')))
+    train_ids.tofile(os.path.join(out_dir, 'train.bin'))
+    val_ids.tofile(os.path.join(out_dir, 'val.bin'))
 
     # save the meta information as well, to help us encode/decode later
     meta = {
@@ -82,5 +131,5 @@ if __name__ == '__main__':
         'itos': tokenizer.id_to_token,
         'stoi': tokenizer.token_to_id,
     }
-    with open(os.path.join(os.path.dirname(__file__), os.path.join(out_dir, 'meta.pkl')), 'wb') as f:
+    with open(os.path.join(out_dir, 'meta.pkl'), 'wb') as f:
         pickle.dump(meta, f)
