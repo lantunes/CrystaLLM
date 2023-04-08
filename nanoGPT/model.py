@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from lib import get_cif_tokenizer, EOF_TOKEN
+from lib import get_cif_tokenizer
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
@@ -345,15 +345,14 @@ class GPT(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, symmetrized=True, include_eof=True):
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, symmetrized=True):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
-        tokenizer = get_cif_tokenizer(symmetrized=symmetrized, include_eof=include_eof)
+        tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
         newline_id = tokenizer.token_to_id["\n"]
-        eof_id = tokenizer.token_to_id[EOF_TOKEN]
         prev_id = None
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
@@ -372,13 +371,9 @@ class GPT(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1)
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
-            if include_eof:
-                if idx_next.item() == eof_id:
-                    break
-            else:
-                # a sequence of two newlines indicates the end of a CIF file
-                if prev_id is not None and prev_id == newline_id and idx_next.item() == newline_id:
-                    break
+            # a sequence of two newlines indicates the end of a CIF file
+            if prev_id is not None and prev_id == newline_id and idx_next.item() == newline_id:
+                break
             prev_id = idx_next.item()
 
         return idx

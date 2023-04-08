@@ -2,6 +2,7 @@ from pymatgen.core import Structure
 from pymatgen.io.cif import CifWriter
 import multiprocessing as mp
 from tqdm import tqdm
+from lib import array_split
 try:
     import cPickle as pickle
 except ImportError:
@@ -9,17 +10,6 @@ except ImportError:
 
 import warnings
 warnings.filterwarnings("ignore")
-
-
-def array_split(arr, num_splits):
-    split_size, remainder = divmod(len(arr), num_splits)
-    splits = []
-    start = 0
-    for i in range(num_splits):
-        end = start + split_size + (i < remainder)
-        splits.append(arr[start:end])
-        start = end
-    return splits
 
 
 def progress_listener(queue, n):

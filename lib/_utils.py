@@ -47,37 +47,25 @@ KEYWORDS = [
 ]
 
 UNK_TOKEN = "<unk>"
-EOF_TOKEN = "<eof>"
-PAD_TOKEN = "<pad>"
 
 
 class CIFTokenizer:
-    def __init__(self, include_eof=False):
+    def __init__(self):
         self._tokens = list(self.atoms())
         self._tokens.extend(self.digits())
         self._tokens.extend(self.keywords())
         self._tokens.extend(self.symbols())
         self._tokens.extend(self.space_groups())
-        if include_eof:
-            self._tokens.insert(0, EOF_TOKEN)
 
         self._escaped_tokens = [re.escape(token) for token in self._tokens]
         self._escaped_tokens.sort(key=len, reverse=True)
 
         self._tokens_with_unk = list(self._tokens)
         self._tokens_with_unk.append(UNK_TOKEN)
-        if include_eof:
-            self._tokens_with_unk.insert(0, PAD_TOKEN)
 
         # a mapping from characters to integers
         self._token_to_id = {ch: i for i, ch in enumerate(self._tokens_with_unk)}
         self._id_to_token = {i: ch for i, ch in enumerate(self._tokens_with_unk)}
-        if include_eof:
-            # change the id of the padding token to -1, so that it can be ignored in training
-            curr_id = self._token_to_id[PAD_TOKEN]
-            self._token_to_id[PAD_TOKEN] = -1
-            del self._id_to_token[curr_id]
-            self._id_to_token[-1] = PAD_TOKEN
 
     @abstractmethod
     def atoms(self):
@@ -134,8 +122,8 @@ class CIFTokenizer:
 
 
 class CIFSymmTokenizer(CIFTokenizer):
-    def __init__(self, include_eof=False):
-        super().__init__(include_eof=include_eof)
+    def __init__(self):
+        super().__init__()
 
     def atoms(self):
         return ATOMS
@@ -154,8 +142,8 @@ class CIFSymmTokenizer(CIFTokenizer):
 
 
 class CIFNoSymmTokenizer(CIFTokenizer):
-    def __init__(self, include_eof=False):
-        super().__init__(include_eof=include_eof)
+    def __init__(self):
+        super().__init__()
 
     def atoms(self):
         return ATOMS
@@ -173,8 +161,8 @@ class CIFNoSymmTokenizer(CIFTokenizer):
         return []
 
 
-def get_cif_tokenizer(symmetrized, include_eof=False):
+def get_cif_tokenizer(symmetrized):
     if symmetrized:
-        return CIFSymmTokenizer(include_eof=include_eof)
+        return CIFSymmTokenizer()
     else:
-        return CIFNoSymmTokenizer(include_eof=include_eof)
+        return CIFNoSymmTokenizer()
