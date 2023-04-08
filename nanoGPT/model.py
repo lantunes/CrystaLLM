@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from lib import get_cif_tokenizer
+from lib import get_cif_tokenizer, EOF_TOKEN
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):
@@ -321,7 +321,7 @@ class GPT(nn.Module):
             {"params": [param_dict[pn] for pn in sorted(list(no_decay))], "weight_decay": 0.0},
         ]
         # new PyTorch nightly has a new 'fused' option for AdamW that is much faster
-        use_fused = (device_type == 'cuda') and ('fused' in inspect.signature(torch.optim.AdamW).parameters)
+        use_fused = False #(device_type == 'cuda') and ('fused' in inspect.signature(torch.optim.AdamW).parameters)
         print(f"using fused AdamW: {use_fused}")
         extra_args = dict(fused=True) if use_fused else dict()
         optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
@@ -345,14 +345,15 @@ class GPT(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, symmetrized=True):
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None, symmetrized=True, include_eof=True):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
-        tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
+        tokenizer = get_cif_tokenizer(symmetrized=symmetrized, include_eof=include_eof)
         newline_id = tokenizer.token_to_id["\n"]
+        eof_id = tokenizer.token_to_id[EOF_TOKEN]
         prev_id = None
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
@@ -371,9 +372,13 @@ class GPT(nn.Module):
             idx_next = torch.multinomial(probs, num_samples=1)
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
-            # a sequence of two newlines indicates the end of a CIF file
-            if prev_id is not None and prev_id == newline_id and idx_next.item() == newline_id:
-                break
+            if include_eof:
+                if idx_next.item() == eof_id:
+                    break
+            else:
+                # a sequence of two newlines indicates the end of a CIF file
+                if prev_id is not None and prev_id == newline_id and idx_next.item() == newline_id:
+                    break
             prev_id = idx_next.item()
 
         return idx

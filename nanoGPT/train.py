@@ -15,7 +15,8 @@ $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123
 $ torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py
 (If your cluster does not have Infiniband interconnect prepend NCCL_IB_DISABLE=1)
 """
-
+import sys
+sys.path.append(".")
 import os
 import time
 import math
@@ -28,6 +29,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
 from model import GPTConfig, GPT
+from util import get_batch_eof
+
+from lib import get_cif_tokenizer, PAD_TOKEN, EOF_TOKEN
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -74,6 +78,8 @@ backend = 'nccl' # 'nccl', 'gloo', etc.
 device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
 dtype = 'bfloat16' # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True # use PyTorch 2.0 to compile the model to be faster
+include_eof = True  # whether to include the EOF token
+symmetrized = True  # whether the CIF files are symmetrized
 # -----------------------------------------------------------------------------
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
@@ -106,15 +112,29 @@ device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.aut
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
+tokenizer = get_cif_tokenizer(symmetrized=symmetrized, include_eof=include_eof)
+
 # poor man's data loader
 data_dir = os.path.join('data', dataset)
+eof_token_int = tokenizer.token_to_id[EOF_TOKEN]  # TODO  only if include_eof=True
+pad_token_int = tokenizer.token_to_id[PAD_TOKEN]  # TODO  only if include_eof=True
 train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+train_non_eof_indices = np.where(train_data != eof_token_int)[0]
+train_cumsum_eof = np.cumsum(train_data == eof_token_int)
 val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
+val_non_eof_indices = np.where(val_data != eof_token_int)[0]
+val_cumsum_eof = np.cumsum(val_data == eof_token_int)
 def get_batch(split):
     data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
-    y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
+    non_eof_indices = train_non_eof_indices if split == 'train' else val_non_eof_indices
+    cumsum_eof = train_cumsum_eof if split == 'train' else val_cumsum_eof
+    if include_eof:
+        x, y = get_batch_eof(data, batch_size, block_size, pad_token_int, non_eof_indices, cumsum_eof)
+    else:
+        ix = torch.randint(len(data) - block_size, (batch_size,))
+        x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
+        y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
+
     if device_type == 'cuda':
         # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
         x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
