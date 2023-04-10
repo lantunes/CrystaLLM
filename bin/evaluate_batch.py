@@ -30,6 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--eval_file', type=str, required=True, help='eval.csv file')
     parser.add_argument('--out_file', type=str, required=True, help='output file location')
     parser.add_argument('--symmetrized', action='store_true', default=False, help='Symmetrized flag')
+    parser.add_argument('--includes_props', action='store_true', default=False, help='Props flag')
     parser.add_argument('--top_k', type=int, default=10, help='Top K value')
     parser.add_argument('--max_new_tokens', type=int, default=500, help='Maximum new tokens')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'], help='Device to use')
@@ -40,6 +41,7 @@ if __name__ == '__main__':
     eval_fname = args.eval_file
     out_file = args.out_file
     symmetrized = args.symmetrized
+    includes_props = args.includes_props
     top_k = args.top_k
     max_new_tokens = args.max_new_tokens
     device = args.device
@@ -60,7 +62,7 @@ if __name__ == '__main__':
     ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
     # init tokenizer
-    tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
+    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
     encode = tokenizer.encode
     decode = tokenizer.decode
 
@@ -119,7 +121,8 @@ if __name__ == '__main__':
             # run generation
             with torch.no_grad():
                 with ctx:
-                    y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k, symmetrized=symmetrized)
+                    y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
+                                       symmetrized=symmetrized, includes_props=includes_props)
                     output = decode(y[0].tolist())
 
             n_evaluations += 1

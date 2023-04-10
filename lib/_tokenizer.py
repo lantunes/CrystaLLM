@@ -46,6 +46,14 @@ KEYWORDS = [
     "data_"
 ]
 
+EXTENDED_KEYWORDS = [
+    "_atom_type_symbol",
+    "_atom_type_electronegativity",  # does not exist in CIF spec
+    "_atom_type_radius",  # does not exist in CIF spec
+    "_atom_type_ionic_radius",  # does not exist in CIF spec
+    "_atom_type_oxidation_number"
+]
+
 UNK_TOKEN = "<unk>"
 
 
@@ -161,8 +169,32 @@ class CIFNoSymmTokenizer(CIFTokenizer):
         return []
 
 
-def get_cif_tokenizer(symmetrized):
+class CIFSymmPropsTokenizer(CIFTokenizer):
+    def __init__(self):
+        super().__init__()
+
+    def atoms(self):
+        return ATOMS
+
+    def digits(self):
+        return DIGITS
+
+    def keywords(self):
+        kws = list(KEYWORDS)
+        kws.extend(EXTENDED_KEYWORDS)
+        return kws
+
+    def symbols(self):
+        return ["x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"]
+
+    def space_groups(self):
+        return SPACE_GROUPS
+
+
+def get_cif_tokenizer(symmetrized, includes_props=False):
     if symmetrized:
+        if includes_props:
+            return CIFSymmPropsTokenizer()
         return CIFSymmTokenizer()
     else:
         return CIFNoSymmTokenizer()

@@ -12,13 +12,14 @@ since the model didn't directly see the CIFs of the validation set in
 training. 
 """
 if __name__ == '__main__':
-    validation_set_fname = "../out/mp_oqmd_cifs_nosymm_v2/val.bin"
-    out_file = "../out/mp_oqmd_cifs_nosymm_v2/eval.csv"
+    validation_set_fname = "../out/mp_oqmd_cifs_semisymm_props/val.bin"
+    out_file = "../out/mp_oqmd_cifs_semisymm_props/eval.csv"
     n = 10_000  # the number of CIFs to randomly select to include in the evaluation set
-    symmetrized = False
+    symmetrized = True
+    includes_props = True
 
     validation_set_ints = np.fromfile(validation_set_fname, dtype=np.uint16)
-    tokenizer = get_cif_tokenizer(symmetrized)
+    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
 
     # validation_set_tokens = tokenizer.decode(validation_set_ints)
     id_to_token = tokenizer.id_to_token

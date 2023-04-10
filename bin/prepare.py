@@ -23,8 +23,8 @@ def progress_listener(queue, n):
         pbar.update(message)
 
 
-def tokenize(chunk_of_cifs, symmetrized, queue):
-    tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
+def tokenize(chunk_of_cifs, symmetrized, includes_props, queue):
+    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
     tokenized = []
     for cif in chunk_of_cifs:
         queue.put(1)
@@ -33,10 +33,11 @@ def tokenize(chunk_of_cifs, symmetrized, queue):
 
 
 if __name__ == '__main__':
-    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm.pkl.gz"
-    out_dir = "../out/mp_oqmd_cifs_semisymm_eof"
+    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm_props.pkl.gz"
+    out_dir = "../out/mp_oqmd_cifs_semisymm_props"
     symmetrized = True
-    workers = 2
+    includes_props = True
+    workers = 4
 
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     jobs = []
     for i in range(workers):
         chunk = chunks[i]
-        job = pool.apply_async(tokenize, (chunk, symmetrized, queue))
+        job = pool.apply_async(tokenize, (chunk, symmetrized, includes_props, queue))
         jobs.append(job)
 
     tokenized_cifs = []
@@ -98,7 +99,7 @@ if __name__ == '__main__':
     val_data = data[int(n * 0.9):]
 
     # encode both to integers
-    tokenizer = get_cif_tokenizer(symmetrized=symmetrized)
+    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
     train_ids = tokenizer.encode(train_data)
     val_ids = tokenizer.encode(val_data)
     print(f"train has {len(train_ids):,} tokens")

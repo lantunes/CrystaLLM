@@ -126,14 +126,37 @@ def get_oxi_state_decorated_structure(structure):
     return struct
 
 
-def get_atomic_props_block(structure, oxi=False):
+def get_atomic_props_block(composition, oxi=False):
+    noble_vdw_radii = {
+        "He": 1.40,
+        "Ne": 1.54,
+        "Ar": 1.88,
+        "Kr": 2.02,
+        "Xe": 2.16,
+        "Rn": 2.20,
+    }
+
+    allen_electronegativity = {
+        "He": 4.16,
+        "Ne": 4.79,
+        "Ar": 3.24,
+    }
 
     def _format(val):
         return f"{float(val): .4f}"
 
-    comp = structure.composition
-    props = {str(el): (_format(el.X), _format(el.atomic_radius), _format(el.average_ionic_radius))
-             for el in sorted(comp.elements)}
+    def _format_X(elem):
+        if math.isnan(elem.X) and str(elem) in allen_electronegativity:
+            return allen_electronegativity[str(elem)]
+        return _format(elem.X)
+
+    def _format_radius(elem):
+        if elem.atomic_radius is None and str(elem) in noble_vdw_radii:
+            return noble_vdw_radii[str(elem)]
+        return _format(elem.atomic_radius)
+
+    props = {str(el): (_format_X(el), _format_radius(el), _format(el.average_ionic_radius))
+             for el in sorted(composition.elements)}
 
     data = {}
     data["_atom_type_symbol"] = list(props)
@@ -150,7 +173,7 @@ def get_atomic_props_block(structure, oxi=False):
     ]
 
     if oxi:
-        symbol_to_oxinum = {str(el): (float(el.oxi_state), _format(el.ionic_radius)) for el in sorted(comp.elements)}
+        symbol_to_oxinum = {str(el): (float(el.oxi_state), _format(el.ionic_radius)) for el in sorted(composition.elements)}
         data["_atom_type_oxidation_number"] = [v[0] for v in symbol_to_oxinum.values()]
         # if we know the oxidation state of the element, use the ionic radius for the given oxidation state
         data["_atom_type_ionic_radius"] = [v[1] for v in symbol_to_oxinum.values()]
