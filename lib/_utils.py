@@ -1,168 +1,161 @@
-import os
-import re
-from abc import abstractmethod
-
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
-with open(os.path.join(THIS_DIR, "spacegroups.txt"), "rt") as f:
-    SPACE_GROUPS = [sg.strip() for sg in f.readlines()]
-
-
-ATOMS = ["Si", "C", "Pb", "I", "Br", "Cl", "Eu", "O", "Fe", "Sb", "In", "S", "N", "U", "Mn", "Lu", "Se", "Tl", "Hf",
-         "Ir", "Ca", "Ta", "Cr", "K", "Pm", "Mg", "Zn", "Cu", "Sn", "Ti", "B", "W", "P", "H", "Pd", "As", "Co", "Np",
-         "Tc", "Hg", "Pu", "Al", "Tm", "Tb", "Ho", "Nb", "Ge", "Zr", "Cd", "V", "Sr", "Ni", "Rh", "Th", "Na", "Ru",
-         "La", "Re", "Y", "Er", "Ce", "Pt", "Ga", "Li", "Cs", "F", "Ba", "Te", "Mo", "Gd", "Pr", "Bi", "Sc", "Ag", "Rb",
-         "Dy", "Yb", "Nd", "Au", "Os", "Pa", "Sm", "Be", "Ac", "Xe", "Kr", "He", "Ne", "Ar"]
-
-DIGITS = [str(d) for d in list(range(10))]
-
-KEYWORDS = [
-    "_cell_length_b",
-    "_atom_site_occupancy",
-    "_atom_site_attached_hydrogens",
-    "_cell_length_a",
-    "_cell_angle_beta",
-    "_symmetry_equiv_pos_as_xyz",
-    "_cell_angle_gamma",
-    "_atom_site_fract_x",
-    "_symmetry_space_group_name_H-M",
-    "_symmetry_Int_Tables_number",
-    "_chemical_formula_structural",
-    "_chemical_name_systematic",
-    "_atom_site_fract_y",
-    "_atom_site_symmetry_multiplicity",
-    "_chemical_formula_sum",
-    "_atom_site_label",
-    "_atom_site_type_symbol",
-    "_cell_length_c",
-    "_atom_site_B_iso_or_equiv",
-    "_symmetry_equiv_pos_site_id",
-    "_cell_volume",
-    "_atom_site_fract_z",
-    "_cell_angle_alpha",
-    "_cell_formula_units_Z",
-    "loop_",
-    "data_"
-]
-
-UNK_TOKEN = "<unk>"
+import math
+import numpy as np
+from pymatgen.core import Composition
+from pymatgen.io.cif import CifBlock
+from pymatgen.analysis.bond_valence import BVAnalyzer
+from pymatgen.transformations.standard_transformations import OxidationStateDecorationTransformation
+from itertools import permutations
+from sklearn.metrics import mean_absolute_error, r2_score
+from ._metrics import abs_r_score
 
 
-class CIFTokenizer:
-    def __init__(self):
-        self._tokens = list(self.atoms())
-        self._tokens.extend(self.digits())
-        self._tokens.extend(self.keywords())
-        self._tokens.extend(self.symbols())
-        self._tokens.extend(self.space_groups())
+def get_unit_cell_volume(a, b, c, alpha_deg, beta_deg, gamma_deg):
+    alpha_rad = math.radians(alpha_deg)
+    beta_rad = math.radians(beta_deg)
+    gamma_rad = math.radians(gamma_deg)
 
-        self._escaped_tokens = [re.escape(token) for token in self._tokens]
-        self._escaped_tokens.sort(key=len, reverse=True)
+    volume = (a * b * c * math.sqrt(1 - math.cos(alpha_rad) ** 2 - math.cos(beta_rad) ** 2 - math.cos(gamma_rad) ** 2 +
+                                    2 * math.cos(alpha_rad) * math.cos(beta_rad) * math.cos(gamma_rad)))
 
-        self._tokens_with_unk = list(self._tokens)
-        self._tokens_with_unk.append(UNK_TOKEN)
-
-        # a mapping from characters to integers
-        self._token_to_id = {ch: i for i, ch in enumerate(self._tokens_with_unk)}
-        self._id_to_token = {i: ch for i, ch in enumerate(self._tokens_with_unk)}
-
-    @abstractmethod
-    def atoms(self):
-        pass
-
-    @abstractmethod
-    def digits(self):
-        pass
-
-    @abstractmethod
-    def keywords(self):
-        pass
-
-    @abstractmethod
-    def symbols(self):
-        pass
-
-    @abstractmethod
-    def space_groups(self):
-        pass
-
-    @property
-    def token_to_id(self):
-        return dict(self._token_to_id)
-
-    @property
-    def id_to_token(self):
-        return dict(self._id_to_token)
-
-    def encode(self, s):
-        # encoder: take a string, output a list of integers
-        return [self._token_to_id[c] for c in s]
-
-    def decode(self, l):
-        # decoder: take a list of integers, output a string
-        return ''.join([self._id_to_token[i] for i in l])
-
-    def tokenize_cif(self, cif_string, single_spaces=True):
-        # Create a regex pattern by joining the escaped tokens with '|'
-        token_pattern = '|'.join(self._escaped_tokens)
-
-        # Add a regex pattern to match any sequence of characters separated by whitespace or punctuation
-        full_pattern = f'({token_pattern}|\\w+|[\\.,;!?])'
-
-        # Tokenize the input string using the regex pattern
-        if single_spaces:
-            cif_string = re.sub(r'[ \t]+', ' ', cif_string)
-        tokens = re.findall(full_pattern, cif_string)
-
-        # Replace unrecognized tokens with the unknown_token
-        tokens = [token if token in self._tokens else UNK_TOKEN for token in tokens]
-
-        return tokens
+    return volume
 
 
-class CIFSymmTokenizer(CIFTokenizer):
-    def __init__(self):
-        super().__init__()
+def remove_outliers(actual_values, predicted_values, multiplier=1.5):
 
-    def atoms(self):
-        return ATOMS
+    def get_outlier_bounds(values, multiplier=multiplier):
+        q1, q3 = np.percentile(values, [25, 75])
+        iqr = q3 - q1
+        lower_bound = q1 - multiplier * iqr
+        upper_bound = q3 + multiplier * iqr
+        return lower_bound, upper_bound
 
-    def digits(self):
-        return DIGITS
+    actual_lower_bound, actual_upper_bound = get_outlier_bounds(actual_values)
+    predicted_lower_bound, predicted_upper_bound = get_outlier_bounds(predicted_values)
 
-    def keywords(self):
-        return KEYWORDS
+    filtered_indices = [
+        i for i, (actual, predicted) in enumerate(zip(actual_values, predicted_values))
+        if actual_lower_bound <= actual <= actual_upper_bound
+           and predicted_lower_bound <= predicted <= predicted_upper_bound
+    ]
 
-    def symbols(self):
-        return ["x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"]
+    filtered_actual_values = [actual_values[i] for i in filtered_indices]
+    filtered_predicted_values = [predicted_values[i] for i in filtered_indices]
 
-    def space_groups(self):
-        return SPACE_GROUPS
-
-
-class CIFNoSymmTokenizer(CIFTokenizer):
-    def __init__(self):
-        super().__init__()
-
-    def atoms(self):
-        return ATOMS
-
-    def digits(self):
-        return DIGITS
-
-    def keywords(self):
-        return KEYWORDS
-
-    def symbols(self):
-        return ["x", "y", "z", ".", "(", ")", "'", ",", " ", "\n"]
-
-    def space_groups(self):
-        return []
+    return filtered_actual_values, filtered_predicted_values
 
 
-def get_cif_tokenizer(symmetrized):
-    if symmetrized:
-        return CIFSymmTokenizer()
+def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multiplier=None, ylabel="predicted",
+                           min_extra=1, max_extra=1, text=None, metrics=True,
+                           alpha=None, title=None, trim_lims=False, size=3, color="lightblue",
+                           legend_labels=None, legend_fontsize=6, legend_title=None, legend_loc=None):
+
+    n_outliers_removed = 0
+
+    if outlier_multiplier is not None:
+        orig_count = len(true_y)
+        true_y, predicted_y = remove_outliers(true_y, predicted_y, outlier_multiplier)
+        n_outliers_removed = orig_count - len(true_y)
+        print(f"{text}: outliers removed: {n_outliers_removed}/{orig_count} "
+              f"({((orig_count - len(true_y))/orig_count)*100:.1f}%)")
+
+    line_start = np.min([np.min(true_y), np.min(predicted_y)]) - min_extra
+    line_end = np.max([np.max(true_y), np.max(predicted_y)]) + max_extra
+
+    scatter = ax.scatter(true_y, predicted_y, s=size, linewidth=0.1, edgecolor="black", c=color, alpha=alpha)
+    ax.plot([line_start, line_end], [line_start, line_end], 'k-', linewidth=0.35)
+    if trim_lims:
+        ax.set_xlim(np.min(true_y) - min_extra, np.max(true_y) + max_extra)
+        ax.set_ylim(np.min(predicted_y) - min_extra, np.max(predicted_y) + max_extra)
     else:
-        return CIFNoSymmTokenizer()
+        ax.set_xlim(line_start, line_end)
+        ax.set_ylim(line_start, line_end)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(alpha=0.2)
+
+    if title is not None:
+        ax.set_title(title)
+
+    if text:
+        ax.text(0.01, 0.92, text, transform=ax.transAxes)
+
+    if metrics:
+        r2 = r2_score(true_y, predicted_y)
+        mae = mean_absolute_error(true_y, predicted_y)
+        abs_r = abs_r_score(true_y, predicted_y)
+        metrics_text = f"$R^2$: {r2:.2f}, MAE: {mae:.4f}, $|R|$: {abs_r:.2f}"
+        ax.text(0.2, 0.01, metrics_text, transform=ax.transAxes)
+
+    if legend_labels is not None:
+        leg = ax.legend(handles=scatter.legend_elements()[0], labels=legend_labels, fontsize=legend_fontsize,
+                         markerscale=0.5, loc=legend_loc)
+        if legend_title is not None:
+            leg.set_title(legend_title, prop={'size': legend_fontsize})
+
+    return n_outliers_removed
+
+
+def get_composition_permutations(composition_str):
+    composition = Composition(composition_str)
+    elements = tuple(composition.elements)
+    unique_permutations = set(permutations(elements))
+
+    permuted_compositions = [
+        "".join([str(el) + (str(int(composition[el])) if composition[el] != 1 else "") for el in perm]) for perm in
+        unique_permutations]
+
+    return permuted_compositions
+
+
+def get_oxi_state_decorated_structure(structure):
+    """
+    first tries to use BVAnalyzer, and if that doesn't work (i.e. it raises a ValueError),
+    it uses ICSD statistics
+    """
+    try:
+        bva = BVAnalyzer()
+        # NOTE: this will raise a ValueError if the oxidation states can't be determined
+        struct = bva.get_oxi_state_decorated_structure(structure)
+    except ValueError:
+        comp = structure.composition
+        oxi_transform = OxidationStateDecorationTransformation(
+            comp.oxi_state_guesses()[0]
+        )
+        struct = oxi_transform.apply_transformation(structure)
+
+    return struct
+
+
+def get_atomic_props_block(structure, oxi=False):
+
+    def _format(val):
+        return f"{float(val): .4f}"
+
+    comp = structure.composition
+    props = {str(el): (_format(el.X), _format(el.atomic_radius), _format(el.average_ionic_radius))
+             for el in sorted(comp.elements)}
+
+    data = {}
+    data["_atom_type_symbol"] = list(props)
+    data["_atom_type_electronegativity"] = [v[0] for v in props.values()]
+    data["_atom_type_radius"] = [v[1] for v in props.values()]
+    # use the average ionic radius
+    data["_atom_type_ionic_radius"] = [v[2] for v in props.values()]
+
+    loop_vals = [
+        "_atom_type_symbol",
+        "_atom_type_electronegativity",
+        "_atom_type_radius",
+        "_atom_type_ionic_radius"
+    ]
+
+    if oxi:
+        symbol_to_oxinum = {str(el): (float(el.oxi_state), _format(el.ionic_radius)) for el in sorted(comp.elements)}
+        data["_atom_type_oxidation_number"] = [v[0] for v in symbol_to_oxinum.values()]
+        # if we know the oxidation state of the element, use the ionic radius for the given oxidation state
+        data["_atom_type_ionic_radius"] = [v[1] for v in symbol_to_oxinum.values()]
+        loop_vals.append("_atom_type_oxidation_number")
+
+    loops = [loop_vals]
+
+    return str(CifBlock(data, loops, "")).replace("data_\n", "")
