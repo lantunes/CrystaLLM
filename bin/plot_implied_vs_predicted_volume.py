@@ -24,7 +24,7 @@ def get_implied_volumes(predicted_a, predicted_b, predicted_c, predicted_alpha, 
 
 
 if __name__ == '__main__':
-    fname = "../out/cif_model_15.eval.pkl"
+    fname = "../out/cif_model_18.eval.pkl"
 
     with open(fname, "rb") as f:
         results = pickle.load(f)
