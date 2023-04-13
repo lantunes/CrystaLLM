@@ -13,8 +13,8 @@ warnings.filterwarnings("ignore")
 
 
 if __name__ == '__main__':
-    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm.pkl.gz"
-    out_file = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm_props.pkl.gz"
+    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm_Z.pkl.gz"
+    out_file = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm_Z_props.pkl.gz"
     oxi = False  # whether the CIFs to modify contain oxidation state information
 
     with gzip.open(fname, "rb") as f:

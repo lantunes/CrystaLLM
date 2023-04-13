@@ -33,10 +33,10 @@ def tokenize(chunk_of_cifs, symmetrized, includes_props, queue):
 
 
 if __name__ == '__main__':
-    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm_Z.pkl.gz"
-    out_dir = "../out/mp_oqmd_cifs_semisymm_Z"
+    fname = "../out/oqmd_v1_5_matproj_all_2022_04_12.cif_semisymm_Z_props.pkl.gz"
+    out_dir = "../out/mp_oqmd_cifs_semisymm_Z_props"
     symmetrized = True
-    includes_props = False
+    includes_props = True
     workers = 4
 
     if not os.path.exists(out_dir):
