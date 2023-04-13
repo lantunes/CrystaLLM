@@ -103,13 +103,13 @@ class CIFTokenizer:
     def id_to_token(self):
         return dict(self._id_to_token)
 
-    def encode(self, s):
-        # encoder: take a string, output a list of integers
-        return [self._token_to_id[c] for c in s]
+    def encode(self, tokens):
+        # encoder: take a list of tokens, output a list of integers
+        return [self._token_to_id[t] for t in tokens]
 
-    def decode(self, l):
-        # decoder: take a list of integers, output a string
-        return ''.join([self._id_to_token[i] for i in l])
+    def decode(self, ids):
+        # decoder: take a list of integers (i.e. encoded tokens), output a string
+        return ''.join([self._id_to_token[i] for i in ids])
 
     def tokenize_cif(self, cif_string, single_spaces=True):
         # Create a regex pattern by joining the escaped tokens with '|'

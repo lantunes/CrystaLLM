@@ -11,6 +11,7 @@ class CIFData:
         self.cell_angle_beta = None
         self.cell_angle_gamma = None
         self.cell_volume = None
+        self.formula_units = None
 
     def __repr__(self):
         return f"CIFData[" \
@@ -24,6 +25,7 @@ class CIFData:
                f"beta:{self.cell_angle_beta}, " \
                f"gamma:{self.cell_angle_gamma}, " \
                f"vol:{self.cell_volume}, " \
+               f"Z:{self.formula_units}, " \
                f"]"
 
     def to_csv_row(self):
@@ -105,6 +107,8 @@ def populate_cif_data(cif_data, cif, validate=False):
             cif_data.cell_angle_gamma = float(line.split(" ")[1].strip())
         elif line.startswith("_cell_volume"):
             cif_data.cell_volume = float(line.split(" ")[1].strip())
+        elif line.startswith("_cell_formula_units_Z"):
+            cif_data.formula_units = int(line.split(" ")[1].strip())
 
     if validate and not cif_data.is_valid():
         raise Exception("invalid CIFData")

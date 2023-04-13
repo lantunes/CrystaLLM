@@ -7,7 +7,7 @@ except ImportError:
 
 
 if __name__ == '__main__':
-    fname = "../out/cif_model_18.eval.pkl"
+    fname = "../out/cif_model_19.eval.pkl"
 
     with open(fname, "rb") as f:
         results = pickle.load(f)
