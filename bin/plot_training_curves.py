@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
-    results_file = "../out/cif_model_15.out.txt"
+    results_file = "../out/cif_model_19.out.txt"
 
     with open(results_file, "rt") as f:
         results = f.readlines()

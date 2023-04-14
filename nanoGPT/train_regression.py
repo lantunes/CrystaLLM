@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from model import GPTConfig, GPT
-from model_regression import GPTRegressor
+from model_regression import GPTRegressor, GPTRegressorConfig
 
 from sklearn.metrics import r2_score, mean_absolute_error
 from lib import abs_r_score
@@ -34,6 +34,7 @@ n_head = 12
 n_embd = 768
 dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
+additional_layer_size = 0
 # adamw optimizer
 learning_rate = 6e-4 # max learning rate
 max_iters = 600000 # total number of training iterations
@@ -89,9 +90,9 @@ if os.path.exists(meta_path):
 
 # init regression model that will be fine-tuned
 model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
-                  bias=bias, vocab_size=None, dropout=dropout) # start with model_args from command line
+                  bias=bias, vocab_size=None, dropout=dropout, additional_layer_size=additional_layer_size)
 model_args["vocab_size"] = meta_vocab_size
-gptconf = GPTConfig(**model_args)
+gptconf = GPTRegressorConfig(**model_args)
 regression_model = GPTRegressor(gptconf)
 
 if init_from_pretrained:
@@ -99,12 +100,15 @@ if init_from_pretrained:
     ckpt_path = os.path.join(pretrained_model_dir, "ckpt.pt")
     checkpoint = torch.load(ckpt_path, map_location=device)
     checkpoint_model_args = checkpoint["model_args"]
+    model_args_pretrained = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
+                                 bias=bias, vocab_size=None, dropout=dropout)
+    model_args_pretrained["vocab_size"] = meta_vocab_size
     # force these config attributes to be equal otherwise we can't even resume training
     # the rest of the attributes (e.g. dropout) can stay as desired from command line
     for k in ["n_layer", "n_head", "n_embd", "block_size", "bias", "vocab_size"]:
-        model_args[k] = checkpoint_model_args[k]
+        model_args_pretrained[k] = checkpoint_model_args[k]
     # create the model
-    gptconf = GPTConfig(**model_args)
+    gptconf = GPTConfig(**model_args_pretrained)
     pretrained_model = GPT(gptconf)
     state_dict = checkpoint["model"]
     # fix the keys of the state dictionary :(

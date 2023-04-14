@@ -2,11 +2,24 @@ import sys
 sys.path.append(".")
 
 import math
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
 
 from model import Block, LayerNorm
+
+
+@dataclass
+class GPTRegressorConfig:
+    block_size: int = 1024
+    vocab_size: int = 50304 # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency
+    n_layer: int = 12
+    n_head: int = 12
+    n_embd: int = 768
+    dropout: float = 0.0
+    bias: bool = True # True: bias in Linears and LayerNorms, like GPT-2. False: a bit better and faster
+    additional_layer_size: int = 0
 
 
 class GPTRegressor(nn.Module):
@@ -24,7 +37,14 @@ class GPTRegressor(nn.Module):
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
             ln_f = LayerNorm(config.n_embd, bias=config.bias),
         ))
-        self.lm_head = nn.Linear(config.n_embd, 1, bias=False)
+
+        if config.additional_layer_size > 0:
+            self.additional_linear = nn.Linear(config.n_embd, config.additional_layer_size)
+            self.relu = nn.ReLU()
+            self.lm_head = nn.Linear(config.additional_layer_size, 1, bias=False)
+        else:
+            self.additional_linear = None
+            self.lm_head = nn.Linear(config.n_embd, 1, bias=False)
 
         # init all weights
         self.apply(self._init_weights)
@@ -69,6 +89,11 @@ class GPTRegressor(nn.Module):
         for block in self.transformer.h:
             x = block(x)
         x = self.transformer.ln_f(x)
+
+        # pass the output through the additional linear layer and ReLU activation if specified in the config
+        if self.additional_linear is not None:
+            x = self.additional_linear(x)
+            x = self.relu(x)
 
         # pass the output through the linear layer to produce a single value for regression
         logits = self.lm_head(x)  # shape (b, t, 1)
