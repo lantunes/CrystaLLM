@@ -1,7 +1,10 @@
 import math
 import numpy as np
+import re
 from pymatgen.core import Composition
 from pymatgen.io.cif import CifBlock
+from pymatgen.symmetry.groups import SpaceGroup
+from pymatgen.core.operations import SymmOp
 from pymatgen.analysis.bond_valence import BVAnalyzer
 from pymatgen.transformations.standard_transformations import OxidationStateDecorationTransformation
 from itertools import permutations
@@ -182,3 +185,36 @@ def get_atomic_props_block(composition, oxi=False):
     loops = [loop_vals]
 
     return str(CifBlock(data, loops, "")).replace("data_\n", "")
+
+
+def extract_space_group_symbol(cif_str):
+    space_group_match = re.search(r"_symmetry_space_group_name_H-M\s+('([^']+)'|(\S+))", cif_str)
+    space_group_name = None
+    if space_group_match:
+        space_group_name = space_group_match.group(2) if space_group_match.group(2) else space_group_match.group(3)
+    return space_group_name
+
+
+def replace_symmetry_operators(cif_str, space_group_symbol):
+    space_group = SpaceGroup(space_group_symbol)
+    symmetry_ops = space_group.symmetry_ops
+
+    loops = []
+    data = {}
+    symmops = []
+    for op in symmetry_ops:
+        v = op.translation_vector
+        symmops.append(SymmOp.from_rotation_and_translation(op.rotation_matrix, v))
+
+    ops = [op.as_xyz_string() for op in symmops]
+    data["_symmetry_equiv_pos_site_id"] = [f"{i}" for i in range(1, len(ops) + 1)]
+    data["_symmetry_equiv_pos_as_xyz"] = ops
+
+    loops.append(["_symmetry_equiv_pos_site_id", "_symmetry_equiv_pos_as_xyz"])
+
+    symm_block = str(CifBlock(data, loops, "")).replace("data_\n", "")
+
+    pattern = r"(loop_\n_symmetry_equiv_pos_site_id\n_symmetry_equiv_pos_as_xyz\n1 'x, y, z')"
+    cif_str_updated = re.sub(pattern, symm_block, cif_str)
+
+    return cif_str_updated
