@@ -140,5 +140,7 @@ if __name__ == '__main__':
         generated_cifs = result_queue.get()
         all_cifs.extend(generated_cifs)
 
+    print(f"CIFs generated: {len(all_cifs):,}")
+
     with gzip.open(out_file, 'wb') as f:
         pickle.dump(all_cifs, f, protocol=pickle.HIGHEST_PROTOCOL)
