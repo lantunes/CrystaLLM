@@ -187,14 +187,6 @@ def get_atomic_props_block(composition, oxi=False):
     return str(CifBlock(data, loops, "")).replace("data_\n", "")
 
 
-def extract_space_group_symbol(cif_str):
-    space_group_match = re.search(r"_symmetry_space_group_name_H-M\s+('([^']+)'|(\S+))", cif_str)
-    space_group_name = None
-    if space_group_match:
-        space_group_name = space_group_match.group(2) if space_group_match.group(2) else space_group_match.group(3)
-    return space_group_name
-
-
 def replace_symmetry_operators(cif_str, space_group_symbol):
     space_group = SpaceGroup(space_group_symbol)
     symmetry_ops = space_group.symmetry_ops
@@ -218,3 +210,32 @@ def replace_symmetry_operators(cif_str, space_group_symbol):
     cif_str_updated = re.sub(pattern, symm_block, cif_str)
 
     return cif_str_updated
+
+
+def extract_space_group_symbol(cif_str):
+    match = re.search(r"_symmetry_space_group_name_H-M\s+('([^']+)'|(\S+))", cif_str)
+    if match:
+        return match.group(2) if match.group(2) else match.group(3)
+    raise Exception(f"could not extract space group from:\n{cif_str}")
+
+
+def extract_numeric_property(cif_str, prop, numeric_type=float):
+    match = re.search(rf"{prop}\s+([.0-9]+)", cif_str)
+    if match:
+        return numeric_type(match.group(1))
+    raise Exception(f"could not find {prop} in:\n{cif_str}")
+
+
+def extract_volume(cif_str):
+    return extract_numeric_property(cif_str, "_cell_volume")
+
+
+def extract_formula_units(cif_str):
+    return extract_numeric_property(cif_str, "_cell_formula_units_Z", numeric_type=int)
+
+
+def extract_formula_nonreduced(cif_str):
+    match = re.search(r"_chemical_formula_sum\s+('([^']+)'|(\S+))", cif_str)
+    if match:
+        return match.group(2) if match.group(2) else match.group(3)
+    raise Exception(f"could not extract _chemical_formula_sum value from:\n{cif_str}")

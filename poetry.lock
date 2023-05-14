@@ -624,6 +624,22 @@ pyparsing = ">=2.3.1"
 python-dateutil = ">=2.7"
 
 [[package]]
+name = "matplotlib-venn"
+version = "0.11.9"
+description = "Functions for plotting area-proportional two- and three-way Venn diagrams in matplotlib."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "matplotlib-venn-0.11.9.tar.gz", hash = "sha256:bbf12f2a066c7f8448793b35a307b192004ba4bd8bba133bce09165dbdc9528b"},
+]
+
+[package.dependencies]
+matplotlib = "*"
+numpy = "*"
+scipy = "*"
+
+[[package]]
 name = "monty"
 version = "2022.9.9"
 description = "Monty is the missing complement to Python."
@@ -2119,4 +2135,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "74ab12517437c9e7aa074c1dc05b20f6a48e4f43507aa9d9af3119aa9842bacf"
+content-hash = "b0fecc604eb72f7c75c5f8eb032e7f88f3fa2fd6c2b759cebf3bed687355e756"
