@@ -1,4 +1,4 @@
-CrystalGPT-dev
+CrystaLLM
 ==============
 
 To activate the venv:
@@ -26,5 +26,3 @@ alternatively:
 ```shell
 $ python nanoGPT/sample.py --device=cpu --out_dir=out/cif_model --start="FILE:out/prompt.txt"
 ```
-
-All the datasets are located at `s3://crystalgpt-data/` (Materialis.AI AWS account).
