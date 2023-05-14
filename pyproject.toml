@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "CrystalGPT"
+name = "CrystaLLM"
 version = "0.1.0"
 description = ""
 authors = ["Luis Antunes <lantunes@gmail.com>"]
