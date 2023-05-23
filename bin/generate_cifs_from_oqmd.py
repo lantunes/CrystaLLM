@@ -1,6 +1,7 @@
 # NOTE: the qmpy dependency is not included in this project, and this script is here for
 #  informational reasons only. Running this script requires an environment with the qmpy
 #  dependency installed.
+# based on https://github.com/Tony-Y/cgnn/blob/master/tools/oqmd_data.py
 from qmpy import *
 from pymatgen.core.structure import Structure
 from pymatgen.io.cif import CifWriter
