@@ -1,0 +1,10 @@
+{
+  "device": "cpu",
+  "num_samples": 1,
+  "max_new_tokens": 3000,
+  "temperature": 1.0,
+  "top_k": 10,
+  "symmetrized": true,
+  "includes_props": true,
+  "compile": false
+}

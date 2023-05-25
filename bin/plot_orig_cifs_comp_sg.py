@@ -43,7 +43,8 @@ if __name__ == '__main__':
     X = [[0. for _ in range(0, max_sg_num)] for _ in range(0, max_Z)]
 
     for sg_num, Z in elements_space_group_nums.keys():
-        X[Z-1][sg_num-1] = np.log1p(elements_space_group_nums[(sg_num, Z)])
+        val = elements_space_group_nums[(sg_num, Z)]
+        X[Z-1][sg_num-1] = 0. if val == 0. else np.log1p(val)
 
     plt.figure()
     ax = plt.gca()
