@@ -1,0 +1,14 @@
+out/
+logs/
+data/
+scratches/
+.idea/
+config/
+.gitignore
+create_mar.sh
+poetry.lock
+pyproject.toml
+README.md
+serve.properties
+serve_config.json
+saved_models/
