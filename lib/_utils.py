@@ -239,3 +239,67 @@ def extract_formula_nonreduced(cif_str):
     if match:
         return match.group(2) if match.group(2) else match.group(3)
     raise Exception(f"could not extract _chemical_formula_sum value from:\n{cif_str}")
+
+
+def semisymmetrize_cif(cif_str):
+    return re.sub(
+        r"(_symmetry_equiv_pos_as_xyz\n)(.*?)(?=\n(?:\S| \S))",
+        r"\1  1  'x, y, z'",
+        cif_str,
+        flags=re.DOTALL
+    )
+
+
+def replace_data_formula_with_nonreduced_formula(cif_str):
+    pattern = r"_chemical_formula_sum\s+(.+)\n"
+    pattern_2 = r"(data_)(.*?)(\n)"
+    match = re.search(pattern, cif_str)
+    if match:
+        chemical_formula = match.group(1)
+        chemical_formula = chemical_formula.replace("'", "").replace(" ", "")
+
+        modified_cif = re.sub(pattern_2, r'\1' + chemical_formula + r'\3', cif_str)
+
+        return modified_cif
+    else:
+        raise Exception(f"Chemical formula not found {cif_str}")
+
+
+def add_atomic_props_block(cif_str, oxi=False):
+    comp = Composition(extract_formula_nonreduced(cif_str))
+
+    block = get_atomic_props_block(composition=comp, oxi=oxi)
+
+    # the hypothesis is that the atomic properties should be the first thing
+    #  that the model must learn to associate with the composition, since
+    #  they will determine so much of what follows in the file
+    pattern = r"_symmetry_space_group_name_H-M"
+    match = re.search(pattern, cif_str)
+
+    if match:
+        start_pos = match.start()
+        modified_cif = cif_str[:start_pos] + block + "\n" + cif_str[start_pos:]
+        return modified_cif
+    else:
+        raise Exception(f"Pattern not found: {cif_str}")
+
+
+def round_numbers(cif_str, decimal_places=4):
+    # Pattern to match a floating point number in the CIF file
+    # It also matches numbers in scientific notation
+    pattern = r"[-+]?\d*\.\d+([eE][-+]?\d+)?"
+
+    # Function to round the numbers
+    def round_number(match):
+        number_str = match.group()
+        number = float(number_str)
+        # Check if number of digits after decimal point is less than 'decimal_places'
+        if len(number_str.split('.')[-1]) <= decimal_places:
+            return number_str
+        rounded = round(number, decimal_places)
+        return format(rounded, '.{}f'.format(decimal_places))
+
+    # Replace all occurrences of the pattern using a regex sub operation
+    cif_string_rounded = re.sub(pattern, round_number, cif_str)
+
+    return cif_string_rounded
