@@ -12,10 +12,10 @@ from lib import get_cif_tokenizer
 logger = logging.getLogger(__name__)
 
 
-def preprocess(data):
-    # NOTE: data should be a non-reduced formula, like "Na1Cl1"
-    logger.info(f"data received: {data}")
-    return f"data_{data}\n"
+def preprocess(comp):
+    # NOTE: comp should be a non-reduced formula, like "Na1Cl1"
+    logger.info(f"comp received: {comp}")
+    return f"data_{comp}\n"
 
 
 def inference(data, tokenizer, model, device, ctx, num_samples, max_new_tokens, temperature, top_k,
@@ -88,7 +88,7 @@ def handle_request(**inputs):
 
     ctx = nullcontext() if device == "cpu" else torch.amp.autocast(device_type=device, dtype=torch.float32)
 
-    data = preprocess(inputs["text"])
+    data = preprocess(inputs["comp"])
 
     results = inference(data, tokenizer, model, device, ctx, num_samples, max_new_tokens,
                         temperature, top_k, symmetrized, includes_props)
@@ -97,5 +97,5 @@ def handle_request(**inputs):
 
 if __name__ == '__main__':
     _model, _config = load_model()
-    resp = handle_request(text="Na1Cl1", context=(_model, _config))
+    resp = handle_request(comp="Na1Cl1", context=(_model, _config))
     print(resp)
