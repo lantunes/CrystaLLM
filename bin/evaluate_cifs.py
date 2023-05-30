@@ -2,7 +2,6 @@ import sys
 sys.path.append(".")
 import gzip
 import queue
-from pymatgen.core import Structure
 import numpy as np
 from tqdm import tqdm
 import multiprocessing as mp
@@ -75,8 +74,7 @@ def eval_cif(progress_queue, task_queue, result_queue):
             if is_space_group_consistent(cif):
                 n_space_group_consistent += 1
 
-            structure = Structure.from_str(cif, fmt="cif")
-            score = bond_length_reasonableness_score(structure)
+            score = bond_length_reasonableness_score(cif)
             bond_length_reasonableness_scores.append(score)
 
             signal.alarm(0)  # cancel the alarm

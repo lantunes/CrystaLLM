@@ -19,7 +19,10 @@ app = beam.App(
 )
 
 app.Trigger.RestAPI(
-    inputs={"text": beam.Types.String()},
+    inputs={
+        "comp": beam.Types.String(),
+        "sg": beam.Types.String(),
+    },
     outputs={
         "cifs": beam.Types.Json(),
     },

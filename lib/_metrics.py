@@ -6,13 +6,11 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from ._utils import extract_data_formula
 
 
-def bond_length_reasonableness_score(structure, tolerance=0.3):
+def bond_length_reasonableness_score(cif_str, tolerance=0.3):
     """
     If a bond length is 30% shorter or longer than the sum of the atomic radii, the score is lower.
-
-    :param structure:
-    :return:
     """
+    structure = Structure.from_str(cif_str, fmt="cif")
     crystal_nn = CrystalNN()
 
     min_ratio = 1 - tolerance
