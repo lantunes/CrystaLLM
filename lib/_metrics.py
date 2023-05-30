@@ -114,7 +114,7 @@ def is_space_group_consistent(cif_str):
     return is_match
 
 
-def is_atom_site_occupancy_consistent(cif_str):
+def is_atom_site_multiplicity_consistent(cif_str):
     # Parse the CIF string
     parser = CifParser.from_string(cif_str)
     cif_data = parser.as_dict()

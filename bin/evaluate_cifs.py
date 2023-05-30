@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import multiprocessing as mp
 import signal
-from lib import is_atom_site_occupancy_consistent, is_space_group_consistent, extract_space_group_symbol, \
+from lib import is_atom_site_multiplicity_consistent, is_space_group_consistent, extract_space_group_symbol, \
     replace_symmetry_operators, bond_length_reasonableness_score
 
 try:
@@ -48,7 +48,7 @@ def get_prompts_to_cifs(cifs):
 
 
 def eval_cif(progress_queue, task_queue, result_queue):
-    n_atom_site_occupancy_consistent = 0
+    n_atom_site_multiplicity_consistent = 0
     n_space_group_consistent = 0
     bond_length_reasonableness_scores = []
 
@@ -69,8 +69,8 @@ def eval_cif(progress_queue, task_queue, result_queue):
             if space_group_symbol is not None and space_group_symbol != "P 1":
                 cif = replace_symmetry_operators(cif, space_group_symbol)
 
-            if is_atom_site_occupancy_consistent(cif):
-                n_atom_site_occupancy_consistent += 1
+            if is_atom_site_multiplicity_consistent(cif):
+                n_atom_site_multiplicity_consistent += 1
 
             if is_space_group_consistent(cif):
                 n_space_group_consistent += 1
@@ -87,7 +87,7 @@ def eval_cif(progress_queue, task_queue, result_queue):
 
         progress_queue.put(1)
 
-    result_queue.put((n_atom_site_occupancy_consistent, n_space_group_consistent, bond_length_reasonableness_scores))
+    result_queue.put((n_atom_site_multiplicity_consistent, n_space_group_consistent, bond_length_reasonableness_scores))
 
 
 if __name__ == '__main__':
@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
     n = len(cifs_pred)
     n_space_group_consistent = 0
-    n_atom_site_occupancy_consistent = 0
+    n_atom_site_multiplicity_consistent = 0
     bond_length_reasonableness_scores = []
 
     manager = mp.Manager()
@@ -131,18 +131,18 @@ if __name__ == '__main__':
     for process in processes:
         process.join()
 
-    n_atom_site_occupancy_consistent = 0
+    n_atom_site_multiplicity_consistent = 0
     n_space_group_consistent = 0
     bond_length_reasonableness_scores = []
 
     while not result_queue.empty():
         n_atom_site_occ, n_space_group, scores = result_queue.get()
-        n_atom_site_occupancy_consistent += n_atom_site_occ
+        n_atom_site_multiplicity_consistent += n_atom_site_occ
         n_space_group_consistent += n_space_group
         bond_length_reasonableness_scores.extend(scores)
 
     print(f"space_group_consistent: {n_space_group_consistent}/{n} ({n_space_group_consistent/n:.3f})\n "
-          f"atom_site_occupancy_consistent: "
-          f"{n_atom_site_occupancy_consistent}/{n} ({n_atom_site_occupancy_consistent/n:.3f})\n "
+          f"atom_site_multiplicity_consistent: "
+          f"{n_atom_site_multiplicity_consistent}/{n} ({n_atom_site_multiplicity_consistent/n:.3f})\n "
           f"bond length reasonableness score: "
           f"{np.mean(bond_length_reasonableness_scores):.4f} ± {np.std(bond_length_reasonableness_scores):.4f}")
