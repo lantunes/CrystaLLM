@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import re
+import warnings
 from pymatgen.core import Composition
 from pymatgen.io.cif import CifBlock
 from pymatgen.symmetry.groups import SpaceGroup
@@ -9,7 +10,6 @@ from pymatgen.analysis.bond_valence import BVAnalyzer
 from pymatgen.transformations.standard_transformations import OxidationStateDecorationTransformation
 from itertools import permutations
 from sklearn.metrics import mean_absolute_error, r2_score
-from ._metrics import abs_r_score
 
 
 def get_unit_cell_volume(a, b, c, alpha_deg, beta_deg, gamma_deg):
@@ -45,6 +45,42 @@ def remove_outliers(actual_values, predicted_values, multiplier=1.5):
     filtered_predicted_values = [predicted_values[i] for i in filtered_indices]
 
     return filtered_actual_values, filtered_predicted_values
+
+
+def abs_r_score(actual, predicted):
+    """
+    An example comparison between |R| and R^2:
+    ```
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import r2_score
+
+    actual =    np.array([1, 4, 1, 3, 6, 4, 5, 1, 2, 5])
+    predicted = np.array([1, 3, 1, 2, 1, 4, 4, 1, 3, 5])
+
+    print(abs_r_score(actual, predicted))
+    print(r2_score(actual, predicted))
+
+    plt.scatter(predicted, actual)
+    plt.yticks(list(range(7)))
+    plt.xticks(list(range(7)))
+    plt.show()
+    ```
+    """
+    actual = np.array(actual)
+    predicted = np.array(predicted)
+
+    if len(predicted) < 2:
+        msg = "|R| score is not well-defined with less than two samples."
+        warnings.warn(msg, UserWarning)
+        return float("nan")
+
+    # sum of the absolute errors
+    sae = np.sum(np.abs(actual - predicted))
+
+    # sum of the absolute deviations from the mean
+    sad = np.sum(np.abs(actual - np.mean(actual)))
+
+    return 1 - (sae / sad)
 
 
 def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multiplier=None, ylabel="predicted",
@@ -232,6 +268,13 @@ def extract_volume(cif_str):
 
 def extract_formula_units(cif_str):
     return extract_numeric_property(cif_str, "_cell_formula_units_Z", numeric_type=int)
+
+
+def extract_data_formula(cif_str):
+    match = re.search(r"data_([A-Za-z1-9]+)\n", cif_str)
+    if match:
+        return match.group(1)
+    raise Exception(f"could not find data_ in:\n{cif_str}")
 
 
 def extract_formula_nonreduced(cif_str):
