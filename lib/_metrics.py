@@ -85,7 +85,7 @@ def is_formula_consistent(cif_str):
     formula_sum = Composition(cif_data[list(cif_data.keys())[0]]["_chemical_formula_sum"])
     formula_structural = Composition(cif_data[list(cif_data.keys())[0]]["_chemical_formula_structural"])
 
-    return formula_data == formula_sum == formula_structural
+    return formula_data.reduced_formula == formula_sum.reduced_formula == formula_structural.reduced_formula
 
 
 def is_atom_site_multiplicity_consistent(cif_str):
