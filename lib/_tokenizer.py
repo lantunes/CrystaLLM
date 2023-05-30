@@ -63,7 +63,11 @@ class CIFTokenizer:
         self._tokens.extend(self.digits())
         self._tokens.extend(self.keywords())
         self._tokens.extend(self.symbols())
-        self._tokens.extend(self.space_groups())
+
+        space_groups = list(self.space_groups())
+        # Replace 'Pm' space group with 'Pm_sg' to disambiguate from atom 'Pm'
+        space_groups[space_groups.index("Pm")] = "Pm_sg"
+        self._tokens.extend(space_groups)
 
         self._escaped_tokens = [re.escape(token) for token in self._tokens]
         self._escaped_tokens.sort(key=len, reverse=True)
@@ -74,6 +78,8 @@ class CIFTokenizer:
         # a mapping from characters to integers
         self._token_to_id = {ch: i for i, ch in enumerate(self._tokens_with_unk)}
         self._id_to_token = {i: ch for i, ch in enumerate(self._tokens_with_unk)}
+        # map the id of 'Pm_sg' back to 'Pm', for decoding convenience
+        self._id_to_token[self._token_to_id["Pm_sg"]] = "Pm"
 
     @abstractmethod
     def atoms(self):
@@ -112,6 +118,10 @@ class CIFTokenizer:
         return ''.join([self._id_to_token[i] for i in ids])
 
     def tokenize_cif(self, cif_string, single_spaces=True):
+        # Preprocessing step to replace '_symmetry_space_group_name_H-M Pm'
+        #  with '_symmetry_space_group_name_H-M Pm_sg',to disambiguate from atom 'Pm'
+        cif_string = re.sub(r'(_symmetry_space_group_name_H-M *\bPm)\n', r'\1_sg\n', cif_string)
+
         # Create a regex pattern by joining the escaped tokens with '|'
         token_pattern = '|'.join(self._escaped_tokens)
 

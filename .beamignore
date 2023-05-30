@@ -12,3 +12,4 @@ README.md
 serve.properties
 serve_config.json
 saved_models/
+tests/
