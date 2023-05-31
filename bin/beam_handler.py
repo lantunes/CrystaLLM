@@ -8,9 +8,22 @@ import logging
 from nanoGPT.model import GPTConfig, GPT
 
 from lib import get_cif_tokenizer, bond_length_reasonableness_score, is_formula_consistent, is_space_group_consistent, \
-    is_atom_site_multiplicity_consistent, get_atomic_props_block_for_formula
+    is_atom_site_multiplicity_consistent, get_atomic_props_block_for_formula, extract_space_group_symbol, \
+    replace_symmetry_operators, remove_atom_props_block
 
 logger = logging.getLogger(__name__)
+
+
+def postprocess(cif_str):
+    # replace the symmetry operators with the correct operators
+    space_group_symbol = extract_space_group_symbol(cif_str)
+    if space_group_symbol is not None and space_group_symbol != "P 1":
+        cif_str = replace_symmetry_operators(cif_str, space_group_symbol)
+
+    # remove atom props
+    cif_str = remove_atom_props_block(cif_str)
+
+    return cif_str
 
 
 def preprocess(inputs):
@@ -57,6 +70,9 @@ def inference(data, tokenizer, model, device, ctx, num_samples, max_new_tokens, 
                 y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
                                    symmetrized=symmetrized, includes_props=includes_props)
                 generated_content = tokenizer.decode(y[0].tolist())
+
+                # replace symmetry operators, remove atom props
+                generated_content = postprocess(generated_content)
 
                 try:
                     valid = is_valid(generated_content, bond_length_acceptability_cutoff)

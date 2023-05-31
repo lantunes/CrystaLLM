@@ -332,6 +332,12 @@ def add_atomic_props_block(cif_str, oxi=False):
         raise Exception(f"Pattern not found: {cif_str}")
 
 
+def remove_atom_props_block(cif):
+    pattern = re.compile(r"(data_[^\n]*\n)loop_[\s\S]*?(_symmetry_space_group_name_H-M)", re.MULTILINE)
+    new_cif = re.sub(pattern, r"\1\2", cif)
+    return new_cif
+
+
 def round_numbers(cif_str, decimal_places=4):
     # Pattern to match a floating point number in the CIF file
     # It also matches numbers in scientific notation
