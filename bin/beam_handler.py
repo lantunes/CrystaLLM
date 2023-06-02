@@ -3,15 +3,13 @@ sys.path.append(".")
 import json
 import torch
 from contextlib import nullcontext
-import logging
+import traceback
 
 from nanoGPT.model import GPTConfig, GPT
 
 from lib import get_cif_tokenizer, bond_length_reasonableness_score, is_formula_consistent, is_space_group_consistent, \
     is_atom_site_multiplicity_consistent, get_atomic_props_block_for_formula, extract_space_group_symbol, \
     replace_symmetry_operators, remove_atom_props_block
-
-logger = logging.getLogger(__name__)
 
 
 def postprocess(cif_str):
@@ -29,7 +27,7 @@ def postprocess(cif_str):
 def preprocess(inputs):
     comp = inputs["comp"]
     # NOTE: comp should be a non-reduced formula, like "Na1Cl1"
-    logger.info(f"comp received: {comp}")
+    print(f"comp received: {comp}")
 
     if "sg" in inputs and inputs["sg"] is not None:
         # construct an input string with the space group
@@ -43,16 +41,16 @@ def preprocess(inputs):
 def is_valid(generated_cif, bond_length_acceptability_cutoff):
     bond_length_score = bond_length_reasonableness_score(generated_cif)
     if bond_length_score < bond_length_acceptability_cutoff:
-        logger.info(f"bond length score unacceptable: {bond_length_score}")
+        print(f"bond length score unacceptable: {bond_length_score}")
         return False
     if not is_formula_consistent(generated_cif):
-        logger.info("formula inconsistent")
+        print("formula inconsistent")
         return False
     if not is_space_group_consistent(generated_cif):
-        logger.info("space group inconsistent")
+        print("space group inconsistent")
         return False
     if not is_atom_site_multiplicity_consistent(generated_cif):
-        logger.info("atom site multiplicity inconsistent")
+        print("atom site multiplicity inconsistent")
         return False
     return True
 
@@ -77,7 +75,8 @@ def inference(data, tokenizer, model, device, ctx, num_samples, max_new_tokens, 
                 try:
                     valid = is_valid(generated_content, bond_length_acceptability_cutoff)
                 except Exception as e:
-                    logger.exception(f"there was an error validating: {e}")
+                    print(f"there was an error validating: {e}")
+                    print(traceback.format_exc())
                     valid = False
 
                 inference_output.append({
@@ -93,7 +92,7 @@ def load_config():
     config_path = "./beam_config.json"
     with open(config_path) as config_file:
         config = json.load(config_file)
-    logger.info(f"serve config: {config}")
+    print(f"serve config: {config}")
     return config
 
 
