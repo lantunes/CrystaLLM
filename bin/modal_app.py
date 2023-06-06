@@ -2,6 +2,7 @@ import json
 import torch
 from contextlib import nullcontext
 import traceback
+from pymatgen.core import Composition
 
 from nanoGPT.model import GPTConfig, GPT
 
@@ -73,35 +74,6 @@ class CrystaLLMModel:
         print(f"serve config: {config}")
         return config
 
-    def _preprocess(self, inputs):
-        comp = inputs["comp"]
-        # NOTE: comp should be a non-reduced formula, like "Na1Cl1"
-        print(f"comp received: {comp}")
-
-        if "sg" in inputs and inputs["sg"] is not None:
-            # construct an input string with the space group
-            sg = inputs["sg"]
-            block = get_atomic_props_block_for_formula(comp)
-            return f"data_{comp}\n{block}\n_symmetry_space_group_name_H-M {sg}\n"
-        else:
-            return f"data_{comp}\n"
-
-    def _is_valid(self, generated_cif, bond_length_acceptability_cutoff):
-        bond_length_score = bond_length_reasonableness_score(generated_cif)
-        if bond_length_score < bond_length_acceptability_cutoff:
-            print(f"bond length score unacceptable: {bond_length_score}")
-            return False
-        if not is_formula_consistent(generated_cif):
-            print("formula inconsistent")
-            return False
-        if not is_space_group_consistent(generated_cif):
-            print("space group inconsistent")
-            return False
-        if not is_atom_site_multiplicity_consistent(generated_cif):
-            print("atom site multiplicity inconsistent")
-            return False
-        return True
-
     def _postprocess(self, cif_str):
         # replace the symmetry operators with the correct operators
         space_group_symbol = extract_space_group_symbol(cif_str)
@@ -113,16 +85,39 @@ class CrystaLLMModel:
 
         return cif_str
 
-    def _inference(self, data, tokenizer, model, device, ctx, num_samples, max_new_tokens, temperature, top_k,
-                   symmetrized, includes_props, bond_length_acceptability_cutoff):
+    def _validate(self, generated_cif, bond_length_acceptability_cutoff):
+        if not is_formula_consistent(generated_cif):
+            msg = "The generated CIF is inconsistent in terms of composition"
+            print(msg)
+            return False, msg
 
-        start_ids = tokenizer.encode(tokenizer.tokenize_cif(data))
+        if not is_atom_site_multiplicity_consistent(generated_cif):
+            msg = "The generated CIF is inconsistent in terms of atom site multiplicity"
+            print(msg)
+            return False, msg
+
+        bond_length_score = bond_length_reasonableness_score(generated_cif)
+        if bond_length_score < bond_length_acceptability_cutoff:
+            msg = f"The bond length score is unacceptable: {bond_length_score:.3f}"
+            print(msg)
+            return False, msg
+
+        if not is_space_group_consistent(generated_cif):
+            msg = "The generated CIF is inconsistent in terms of space group"
+            print(msg)
+            return False, msg
+
+        return True, None
+
+    def _generate(self, prompt, tokenizer, model, device, ctx, max_new_tokens, temperature, top_k,
+                  symmetrized, includes_props, bond_length_acceptability_cutoff):
+        print(f"generating from prompt: {prompt}")
+        start_ids = tokenizer.encode(tokenizer.tokenize_cif(prompt))
         x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
-
-        inference_output = []
+        generated_content = ""
         with torch.no_grad():
             with ctx:
-                for k in range(num_samples):
+                try:
                     y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
                                        symmetrized=symmetrized, includes_props=includes_props)
                     generated_content = tokenizer.decode(y[0].tolist())
@@ -130,20 +125,55 @@ class CrystaLLMModel:
                     # replace symmetry operators, remove atom props
                     generated_content = self._postprocess(generated_content)
 
-                    try:
-                        valid = self._is_valid(generated_content, bond_length_acceptability_cutoff)
-                    except Exception as e:
-                        print(f"there was an error validating: {e}")
-                        print(traceback.format_exc())
-                        valid = False
+                    valid, msg = self._validate(generated_content, bond_length_acceptability_cutoff)
 
-                    inference_output.append({
-                        "input": data,
-                        "generated": generated_content,
-                        "valid": valid,
-                    })
+                except Exception as e:
+                    valid = False
+                    msg = f"there was an error generating: {e}"
+                    print(msg)
+                    print(traceback.format_exc())
 
-        return inference_output
+                return generated_content, valid, msg
+
+    def _get_prompt(self, comp, sg=None):
+        comp_str = comp.to_pretty_string()
+        if sg is not None:
+            # construct an input string with the space group
+            block = get_atomic_props_block_for_formula(comp_str)
+            return f"data_{comp_str}\n{block}\n_symmetry_space_group_name_H-M {sg}\n"
+        else:
+            return f"data_{comp_str}\n"
+
+    def _inference(self, inputs, tokenizer, model, device, ctx, max_new_tokens, temperature, top_k,
+                   symmetrized, includes_props, bond_length_acceptability_cutoff):
+        reduced_comp = Composition(inputs["comp"])  # TODO try-catch?
+        supported_Z = [1, 2, 3, 4, 6, 8]
+        sg = inputs["sg"] if "sg" in inputs else None
+
+        if "z" in inputs:
+            Z = inputs["z"]
+            print(f"Z provided: {Z}")
+            comp = Z * reduced_comp
+            prompt = self._get_prompt(comp, sg=sg)
+            return self._generate(prompt, tokenizer, model, device, ctx,
+                                  max_new_tokens, temperature, top_k, symmetrized,
+                                  includes_props, bond_length_acceptability_cutoff)
+        else:
+            #  scan over all z*reduced_comp, return first valid
+            print(f"Z not provided, trying Z from {supported_Z}...")
+            generated_content = ""
+            valid = False
+            msg = None
+            for Z in supported_Z:
+                comp = Z * reduced_comp
+                prompt = self._get_prompt(comp, sg=sg)
+                generated_content, valid, msg = self._generate(prompt, tokenizer, model, device, ctx,
+                                                               max_new_tokens, temperature, top_k, symmetrized,
+                                                               includes_props, bond_length_acceptability_cutoff)
+                if valid:
+                    print(f"The generated CIF is valid for Z={Z}, ending search")
+                    break
+            return generated_content, valid, msg
 
     @method()
     def generate(self, inputs):
@@ -163,12 +193,19 @@ class CrystaLLMModel:
 
         ctx = nullcontext() if device == "cpu" else torch.amp.autocast(device_type=device, dtype=torch.float32)
 
-        data = self._preprocess(inputs)
+        inference_output = []
+        for _ in range(num_samples):
+            generated, valid, msg = self._inference(inputs, tokenizer, self.model, device, ctx,
+                                                    max_new_tokens, temperature, top_k, symmetrized,
+                                                    includes_props, bond_length_acceptability_cutoff)
+            inference_output.append({
+                "input": inputs,
+                "generated": generated,
+                "valid": valid,
+                "messages": [msg],
+            })
 
-        results = self._inference(data, tokenizer, self.model, device, ctx, num_samples, max_new_tokens,
-                                  temperature, top_k, symmetrized, includes_props, bond_length_acceptability_cutoff)
-
-        result = {"cifs": results}
+        result = {"cifs": inference_output}
         print(f"returning result: {result}")
         return result
 
@@ -178,5 +215,10 @@ class CrystaLLMModel:
 
 @stub.local_entrypoint()
 def main():
+    # inp = {"comp": "Na1Cl1"}
+    # inp = {"comp": "Na1Cl1", "z": 3}
+    # inp = {"comp": "Na1Cl1", "z": 3, "sg": "Pm-3m"}
+    inp = {"comp": "Na1Cl1", "sg": "R-3m"}
+
     model = CrystaLLMModel()
-    model.generate.call(inputs={"comp": "Na1Cl1"})
+    model.generate.call(inputs=inp)
