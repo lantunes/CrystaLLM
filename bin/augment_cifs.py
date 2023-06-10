@@ -4,7 +4,8 @@ import gzip
 from tqdm import tqdm
 import multiprocessing as mp
 from queue import Empty
-from lib import semisymmetrize_cif, replace_data_formula_with_nonreduced_formula, add_atomic_props_block, round_numbers
+from lib import semisymmetrize_cif, replace_data_formula_with_nonreduced_formula, add_atomic_props_block, \
+    round_numbers, extract_formula_units
 try:
     import cPickle as pickle
 except ImportError:
@@ -35,6 +36,11 @@ def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
             break
 
         try:
+            formula_units = extract_formula_units(cif_str)
+            # exclude CIFs with formula units (Z) = 0, which are erroneous
+            if formula_units == 0:
+                raise Exception()
+
             cif_str = replace_data_formula_with_nonreduced_formula(cif_str)
             cif_str = semisymmetrize_cif(cif_str)
             cif_str = add_atomic_props_block(cif_str, oxi)
