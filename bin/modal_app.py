@@ -136,7 +136,10 @@ class CrystaLLMModel:
                 return generated_content, valid, msg
 
     def _get_prompt(self, comp, sg=None):
-        comp_str = comp.to_pretty_string()
+        # NOTE: we have to use comp.formula, so that the elements are sorted by electronegativity,
+        #  which is what the model saw in training; comp.formula looks something like 'Zn1 Cu1 Te1 Se1',
+        #  so we have to strip the spaces
+        comp_str = comp.formula.replace(" ", "")
         if sg is not None:
             # construct an input string with the space group
             block = get_atomic_props_block_for_formula(comp_str)
@@ -218,7 +221,8 @@ def main():
     # inp = {"comp": "Na1Cl1"}
     # inp = {"comp": "Na1Cl1", "z": 3}
     # inp = {"comp": "Na1Cl1", "z": 3, "sg": "Pm-3m"}
-    inp = {"comp": "Na1Cl1", "sg": "R-3m"}
+    # inp = {"comp": "Na1Cl1", "sg": "R-3m"}
+    inp = {"comp": "CuSeTeZn"}
 
     model = CrystaLLMModel()
     model.generate.call(inputs=inp)

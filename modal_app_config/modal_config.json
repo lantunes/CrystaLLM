@@ -1,5 +1,5 @@
 {
-  "model": "cif_model_19.pt",
+  "model": "cif_model_20.pt",
   "device": "cuda",
   "num_samples": 1,
   "max_new_tokens": 3000,
