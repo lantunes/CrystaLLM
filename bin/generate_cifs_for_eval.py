@@ -24,12 +24,14 @@ if __name__ == '__main__':
 
     parser.add_argument('--model_dir', type=str, required=True, help='Model directory')
     parser.add_argument('--eval_file', type=str, required=True, help='evalcifs.pkl.gz file')
-    parser.add_argument('--out_file', type=str, required=True, help='output file location')
+    parser.add_argument('--out_file', type=str, required=True, help='output file location (file will be gzipped)')
     parser.add_argument('--symmetrized', action='store_true', default=False, help='Symmetrized flag')
     parser.add_argument('--includes_props', action='store_true', default=False, help='Props flag')
     parser.add_argument('--top_k', type=int, default=10, help='Top K value')
     parser.add_argument('--max_new_tokens', type=int, default=3000, help='Maximum new tokens')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'], help='Device to use')
+    parser.add_argument('--cif_start_idx', type=int, default=0,
+                        help='The 0-based index of the line in the CIF containing "data_"')
 
     args = parser.parse_args()
 
@@ -41,6 +43,7 @@ if __name__ == '__main__':
     top_k = args.top_k
     max_new_tokens = args.max_new_tokens
     device = args.device
+    cif_start_idx = args.cif_start_idx
 
     # -----------------------------------------------------------------------------
     temperature = 1.0  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
@@ -83,7 +86,7 @@ if __name__ == '__main__':
     X = []
     for eval_cif in tqdm(eval_cifs):
         # append e.g. encoded "data_Na1Cl1\n"
-        prompt = eval_cif.split("\n")[0] + "\n"
+        prompt = eval_cif.split("\n")[cif_start_idx] + "\n"
         start_ids = encode(tokenizer.tokenize_cif(prompt))
         X.append((torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...]))
 
