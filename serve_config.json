@@ -1,10 +1,11 @@
 {
-  "device": "cpu",
+  "device": "cuda",
   "num_samples": 1,
   "max_new_tokens": 3000,
   "temperature": 1.0,
   "top_k": 10,
   "symmetrized": true,
   "includes_props": true,
-  "compile": false
+  "bond_length_acceptability_cutoff": 1.0,
+  "compile": true
 }

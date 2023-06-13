@@ -4,6 +4,7 @@ import os
 import argparse
 import gzip
 from tqdm import tqdm
+import re
 
 from contextlib import nullcontext
 import torch
@@ -19,6 +20,19 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
+PATTERN_COMP = re.compile(r"(data_[^\n]*\n)", re.MULTILINE)
+PATTERN_COMP_SG = re.compile(r"(data_[^\n]*\n)loop_[\s\S]*?(_symmetry_space_group_name_H-M[^\n]*\n)", re.MULTILINE)
+
+
+def extract_prompt(cif_str, pattern):
+    match = re.search(pattern, cif_str)
+    if match:
+        start_index, end_index = match.start(), match.end()
+        return cif_str[start_index:end_index]
+    else:
+        raise Exception(f"could not extract pattern: \n{cif_str}")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Read in arguments for your script")
 
@@ -30,8 +44,8 @@ if __name__ == '__main__':
     parser.add_argument('--top_k', type=int, default=10, help='Top K value')
     parser.add_argument('--max_new_tokens', type=int, default=3000, help='Maximum new tokens')
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'], help='Device to use')
-    parser.add_argument('--cif_start_idx', type=int, default=0,
-                        help='The 0-based index of the line in the CIF containing "data_"')
+    parser.add_argument('--include_spacegroup', action='store_true', default=False, help='Include spacegroup in prompt')
+    parser.add_argument('--num_gens', type=int, default=1, help='The number of times to generate for each CIF')
 
     args = parser.parse_args()
 
@@ -43,7 +57,8 @@ if __name__ == '__main__':
     top_k = args.top_k
     max_new_tokens = args.max_new_tokens
     device = args.device
-    cif_start_idx = args.cif_start_idx
+    include_spacegroup = args.include_spacegroup
+    num_gens = args.num_gens
 
     # -----------------------------------------------------------------------------
     temperature = 1.0  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
@@ -85,8 +100,7 @@ if __name__ == '__main__':
 
     X = []
     for eval_cif in tqdm(eval_cifs):
-        # append e.g. encoded "data_Na1Cl1\n"
-        prompt = eval_cif.split("\n")[cif_start_idx] + "\n"
+        prompt = extract_prompt(eval_cif, PATTERN_COMP_SG if include_spacegroup else PATTERN_COMP)
         start_ids = encode(tokenizer.tokenize_cif(prompt))
         X.append((torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...]))
 
@@ -96,10 +110,13 @@ if __name__ == '__main__':
     with torch.no_grad():
         with ctx:
             for x in tqdm(X):
-                y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
-                                   symmetrized=symmetrized, includes_props=includes_props)
-                output = decode(y[0].tolist())
-                generated.append(output)
+                gens = []
+                for _ in range(num_gens):
+                    y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
+                                       symmetrized=symmetrized, includes_props=includes_props)
+                    output = decode(y[0].tolist())
+                    gens.append(output)
+                generated.append(gens[0] if num_gens == 1 else gens)
 
     with gzip.open(out_file, "wb") as f:
         pickle.dump(generated, f)

@@ -146,7 +146,7 @@ def get_composition_permutations(composition_str):
     return permuted_compositions
 
 
-def get_oxi_state_decorated_structure(structure):
+def get_oxi_state_decorated_structure(structure, all_oxi_states=False, max_sites=None):
     """
     first tries to use BVAnalyzer, and if that doesn't work (i.e. it raises a ValueError),
     it uses ICSD statistics
@@ -158,7 +158,7 @@ def get_oxi_state_decorated_structure(structure):
     except ValueError:
         comp = structure.composition
         oxi_transform = OxidationStateDecorationTransformation(
-            comp.oxi_state_guesses()[0]
+            comp.oxi_state_guesses(all_oxi_states=all_oxi_states, max_sites=max_sites)[0]
         )
         struct = oxi_transform.apply_transformation(structure)
 

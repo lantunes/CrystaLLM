@@ -4,9 +4,9 @@ import time
 
 
 if __name__ == '__main__':
-    url = "http://localhost:8080/predictions/cif_model_19"
+    url = "http://ec2-34-199-200-179.compute-1.amazonaws.com/predictions/cif_model_20"
 
-    data = "Na1Cl1"
+    data = {"comp": "Ba6Mn3Cr3"}
 
     st = time.time()
     response = requests.post(url, data=json.dumps(data))
