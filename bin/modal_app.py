@@ -98,7 +98,8 @@ class CrystaLLMModel:
 
         bond_length_score = bond_length_reasonableness_score(generated_cif)
         if bond_length_score < bond_length_acceptability_cutoff:
-            msg = f"The bond length score is unacceptable: {bond_length_score:.3f}"
+            msg = f"Unreasonable bond lengths detected " \
+                  f"({(1 - bond_length_score) * 100:.0f}% of bond lengths were found to be unreasonable)"
             print(msg)
             return False, msg
 
@@ -147,9 +148,23 @@ class CrystaLLMModel:
         else:
             return f"data_{comp_str}\n"
 
+    def _get_unsupported_atoms(self, comp, supported_atoms):
+        # The model only supports elements up to a certain atomic number
+        supported_atoms = set(supported_atoms)
+        unsupported_atoms = []
+        for e in comp.elements:
+            if e.name not in supported_atoms:
+                unsupported_atoms.append(e.name)
+        return unsupported_atoms
+
     def _inference(self, inputs, tokenizer, model, device, ctx, max_new_tokens, temperature, top_k,
                    symmetrized, includes_props, bond_length_acceptability_cutoff):
         reduced_comp = Composition(inputs["comp"])  # TODO try-catch?
+
+        unsupported_atoms = self._get_unsupported_atoms(reduced_comp, tokenizer.atoms())
+        if len(unsupported_atoms) > 0:
+            return "", False, f"composition contains unsupported atoms: {', '.join(unsupported_atoms)}"
+
         supported_Z = [1, 2, 3, 4, 6, 8]
         sg = inputs["sg"] if "sg" in inputs else None
 
