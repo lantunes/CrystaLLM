@@ -37,7 +37,7 @@ stub = Stub(
         Mount.from_local_dir("./modal_app_config", remote_path="/root"),
         Mount.from_local_file("./lib/spacegroups.txt", remote_path="/root/lib/spacegroups.txt"),
     ],
-    gpu="A10G",
+    gpu="T4",
 )
 class CrystaLLMModel:
     def __enter__(self):

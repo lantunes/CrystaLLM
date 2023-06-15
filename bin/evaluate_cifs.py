@@ -36,16 +36,6 @@ def progress_listener(queue, n):
             break
 
 
-def get_prompts_to_cifs(cifs):
-    prompts_to_cifs = {}
-    for cif in cifs:
-        prompt = cif.split("\n")[0]
-        if prompt not in prompts_to_cifs:
-            prompts_to_cifs[prompt] = []
-        prompts_to_cifs[prompt].append(cif)
-    return prompts_to_cifs
-
-
 def eval_cif(progress_queue, task_queue, result_queue):
     n_atom_site_multiplicity_consistent = 0
     n_space_group_consistent = 0
@@ -89,23 +79,12 @@ def eval_cif(progress_queue, task_queue, result_queue):
 
 
 if __name__ == '__main__':
-    fname_true = "../out/mp_oqmd_cifs_semisymm_Z_props_evalcifs.pkl.gz"
-    fname_pred = "../out/cif_model_19.evalcifs.pkl.gz"
-    # out_file = "../out/cif_model_19.evalcifs_results.pkl.gz"
+    fname_pred = "../out/cif_model_20.evalcifs.pkl.gz"
     workers = 4
-
-    with gzip.open(fname_true, "rb") as f:
-        cifs_true = pickle.load(f)
 
     with gzip.open(fname_pred, "rb") as f:
         cifs_pred = pickle.load(f)
 
-    prompts_to_cifs_true = get_prompts_to_cifs(cifs_true)
-    prompts_to_cifs_pred = get_prompts_to_cifs(cifs_pred)
-
-    assert len(prompts_to_cifs_pred) == len(prompts_to_cifs_true), "predicted and true cif counts unequal in length"
-
-    n = len(cifs_pred)
     n_space_group_consistent = 0
     n_atom_site_multiplicity_consistent = 0
     bond_length_reasonableness_scores = []
@@ -115,10 +94,15 @@ if __name__ == '__main__':
     task_queue = manager.Queue()
     result_queue = manager.Queue()
 
-    for cif in cifs_pred:
-        task_queue.put(cif)
+    n = 0
+    for cifs in cifs_pred:
+        if type(cifs) == str:
+            cifs = [cifs]
+        for cif in cifs:
+            n += 1
+            task_queue.put(cif)
 
-    watcher = mp.Process(target=progress_listener, args=(progress_queue, len(cifs_pred),))
+    watcher = mp.Process(target=progress_listener, args=(progress_queue, n,))
 
     processes = [mp.Process(target=eval_cif, args=(progress_queue, task_queue, result_queue)) for _ in range(workers)]
     processes.append(watcher)
