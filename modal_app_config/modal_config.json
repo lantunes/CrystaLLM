@@ -7,6 +7,6 @@
   "top_k": 10,
   "symmetrized": true,
   "includes_props": true,
-  "bond_length_acceptability_cutoff": 0.75,
+  "bond_length_acceptability_cutoff": 1.0,
   "compile": true
 }
