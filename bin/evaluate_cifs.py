@@ -127,4 +127,6 @@ if __name__ == '__main__':
           f"atom_site_multiplicity_consistent: "
           f"{n_atom_site_multiplicity_consistent}/{n} ({n_atom_site_multiplicity_consistent/n:.3f})\n "
           f"bond length reasonableness score: "
-          f"{np.mean(bond_length_reasonableness_scores):.4f} ± {np.std(bond_length_reasonableness_scores):.4f}")
+          f"{np.mean(bond_length_reasonableness_scores):.4f} ± {np.std(bond_length_reasonableness_scores):.4f}\n "
+          f"bond lengths reasonable: "
+          f"{bond_length_reasonableness_scores.count(1.)}/{n} ({bond_length_reasonableness_scores.count(1.)/n:.3f})")

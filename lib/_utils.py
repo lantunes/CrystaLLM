@@ -84,9 +84,9 @@ def abs_r_score(actual, predicted):
 
 
 def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multiplier=None, ylabel="predicted",
-                           min_extra=1, max_extra=1, text=None, metrics=True,
+                           min_extra=1, max_extra=1, text=None, text_coords=None, metrics=True,
                            alpha=None, title=None, trim_lims=False, size=3, color="lightblue",
-                           legend_labels=None, legend_fontsize=6, legend_title=None, legend_loc=None):
+                           legend_labels=None, legend_fontsize=6, legend_title=None, legend_loc=None, rasterize=False):
 
     n_outliers_removed = 0
 
@@ -101,6 +101,8 @@ def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multi
     line_end = np.max([np.max(true_y), np.max(predicted_y)]) + max_extra
 
     scatter = ax.scatter(true_y, predicted_y, s=size, linewidth=0.1, edgecolor="black", c=color, alpha=alpha)
+    if rasterize:
+        scatter.set_rasterized(True)  # to facilitate saving a plot with many points as a pdf
     ax.plot([line_start, line_end], [line_start, line_end], 'k-', linewidth=0.35)
     if trim_lims:
         ax.set_xlim(np.min(true_y) - min_extra, np.max(true_y) + max_extra)
@@ -116,7 +118,9 @@ def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multi
         ax.set_title(title)
 
     if text:
-        ax.text(0.01, 0.92, text, transform=ax.transAxes)
+        if text_coords is None:
+            text_coords = (0.01, 0.92)
+        ax.text(text_coords[0], text_coords[1], text, transform=ax.transAxes)
 
     if metrics:
         r2 = r2_score(true_y, predicted_y)

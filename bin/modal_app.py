@@ -121,7 +121,10 @@ class CrystaLLMModel:
                 try:
                     y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
                                        symmetrized=symmetrized, includes_props=includes_props)
-                    generated_content = tokenizer.decode(y[0].tolist())
+
+                    generated_tokens = y[0].tolist()
+                    print(f"generated length: {len(generated_tokens)}")
+                    generated_content = tokenizer.decode(generated_tokens)
 
                     # replace symmetry operators, remove atom props
                     generated_content = self._postprocess(generated_content)

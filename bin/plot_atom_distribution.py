@@ -32,6 +32,8 @@ if __name__ == '__main__':
         print(f"atom: {atom}, count: {count}")
         most_common.append((atom, count))
 
+    print(sorted({e.Z for e in atom_to_cif_count}))
+
     Zs = sorted([elem.Z for elem in atom_to_cif_count])
     heights = [atom_to_cif_count[Element.from_Z(Z)] for Z in Zs]
 
