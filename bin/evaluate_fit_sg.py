@@ -34,9 +34,10 @@ def clean_cif(cif_str):
 if __name__ == '__main__':
 
     true_cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.test.pkl.gz"
-    # this should be a list of lists of 3 generation attempts, in the same order as the file above
-    generated_cifs_fname = "../out/cif_model_20.evalcifs-sg.pkl.gz"
-    out_fname = "../out/cif_model_20.evalresults-sg-match.csv"
+    # this should be a list of lists of k generation attempts, in the same order as the file above
+    generated_cifs_fname = "../out/cif_model_22.evalcifs-sg.pkl.gz"
+    gen_attempts = 3
+    out_fname = "../out/cif_model_22.evalresults-sg-match.csv"
 
     with gzip.open(true_cifs_fname, "rb") as f:
         true_cifs = pickle.load(f)
@@ -52,10 +53,9 @@ if __name__ == '__main__':
     results = {
         "formula": [],
         "sg": [],
-        "gen1_match": [],
-        "gen2_match": [],
-        "gen3_match": [],
     }
+    for k in range(gen_attempts):
+        results[f"gen{k+1}_match"] = []
 
     errors = []
 
@@ -68,8 +68,12 @@ if __name__ == '__main__':
         results["sg"].append(extract_space_group_symbol(true_cif))
 
         generated = generated_cifs[i]
-        for k in range(3):
-            gen_cif = generated[k]
+        for k in range(gen_attempts):
+            if type(generated) == list:
+                gen_cif = generated[k]
+            else:
+                # if generated is not a list, then `gen_attempts` should be 1, and `generated` is a CIF
+                gen_cif = generated
 
             gen_cif = clean_cif(gen_cif)
 
@@ -85,20 +89,19 @@ if __name__ == '__main__':
     df = pd.DataFrame(results)
     # add a column with the sum of gen columns, containing the total
     #  number of generations that match the true structure
-    df["n_matching"] = df.loc[:, "gen1_match":"gen3_match"].sum(axis=1)
+    df["n_matching"] = df.loc[:, "gen1_match":f"gen{gen_attempts}_match"].sum(axis=1)
     # add a boolean column indicating whether the row has at least 1 generation
     #   that matches the true structure
     df["matches_at_least_once"] = df["n_matching"] >= 1
-    # add a boolean column indicating whether the row has all 3 generations
+    # add a boolean column indicating whether the row has all k generations
     #  matching the true structure
-    df["all_match"] = df["n_matching"] == 3
+    df["all_match"] = df["n_matching"] == gen_attempts
     df.to_csv(out_fname, index=False)
 
     for err in errors:
         print(f"error: {err}")
 
-    print(f"fraction with at least 1 match within 3 attempts: {df['matches_at_least_once'].mean():.3f}")
-    print(f"fraction with all 3 attempts matching: {df['all_match'].mean():.3f}")
-    print(f"fraction matched on 1st attempt: {df['gen1_match'].mean():.3f}")
-    print(f"fraction matched on 2nd attempt: {df['gen2_match'].mean():.3f}")
-    print(f"fraction matched on 3rd attempt: {df['gen3_match'].mean():.3f}")
+    print(f"fraction with at least 1 match within {gen_attempts} attempts: {df['matches_at_least_once'].mean():.3f}")
+    print(f"fraction with all {gen_attempts} attempts matching: {df['all_match'].mean():.3f}")
+    for k in range(gen_attempts):
+        print(f"fraction matched on attempt {k+1}: {df[f'gen{k+1}_match'].mean():.3f}")

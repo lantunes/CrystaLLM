@@ -27,9 +27,10 @@ def print_metrics(col1, col2, r2, mae):
 
 if __name__ == '__main__':
     true_cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.test.pkl.gz"
-    # this should be a list of lists of 3 generation attempts, in the same order as the file above
-    generated_cifs_fname = "../out/cif_model_20.evalcifs-sg.pkl.gz"
-    out_fname = "../out/cif_model_20.evalresults-sg.csv"
+    # this should be a list of lists of k generation attempts, in the same order as the file above
+    generated_cifs_fname = "../out/cif_model_22.evalcifs-sg.pkl.gz"
+    gen_attempts = 3
+    out_fname = "../out/cif_model_22.evalresults-sg.csv"
 
     with gzip.open(true_cifs_fname, "rb") as f:
         true_cifs = pickle.load(f)
@@ -48,34 +49,16 @@ if __name__ == '__main__':
         "true_alpha": [],
         "true_beta": [],
         "true_gamma": [],
-
-        "gen1_vol_generated": [],
-        "gen1_vol_implied": [],
-        "gen1_a": [],
-        "gen1_b": [],
-        "gen1_c": [],
-        "gen1_alpha": [],
-        "gen1_beta": [],
-        "gen1_gamma": [],
-
-        "gen2_vol_generated": [],
-        "gen2_vol_implied": [],
-        "gen2_a": [],
-        "gen2_b": [],
-        "gen2_c": [],
-        "gen2_alpha": [],
-        "gen2_beta": [],
-        "gen2_gamma": [],
-
-        "gen3_vol_generated": [],
-        "gen3_vol_implied": [],
-        "gen3_a": [],
-        "gen3_b": [],
-        "gen3_c": [],
-        "gen3_alpha": [],
-        "gen3_beta": [],
-        "gen3_gamma": [],
     }
+    for k in range(gen_attempts):
+        results[f"gen{k+1}_vol_generated"] = []
+        results[f"gen{k+1}_vol_implied"] = []
+        results[f"gen{k+1}_a"] = []
+        results[f"gen{k+1}_b"] = []
+        results[f"gen{k+1}_c"] = []
+        results[f"gen{k+1}_alpha"] = []
+        results[f"gen{k+1}_beta"] = []
+        results[f"gen{k+1}_gamma"] = []
 
     for i, true_cif in tqdm(enumerate(true_cifs), total=len(true_cifs)):
         generated = generated_cifs[i]
@@ -91,8 +74,12 @@ if __name__ == '__main__':
         results["true_beta"].append(extract_numeric_property(true_cif, "_cell_angle_beta"))
         results["true_gamma"].append(extract_numeric_property(true_cif, "_cell_angle_gamma"))
 
-        for k in range(3):
-            gen_cif = generated[k]
+        for k in range(gen_attempts):
+            if type(generated) == list:
+                gen_cif = generated[k]
+            else:
+                # if generated is not a list, then `gen_attempts` should be 1, and `generated` is a CIF
+                gen_cif = generated
 
             try:
                 vol = extract_volume(gen_cif)
@@ -143,7 +130,7 @@ if __name__ == '__main__':
     df = pd.DataFrame(results)
     df.to_csv(out_fname, index=False)
 
-    for k in range(3):
+    for k in range(gen_attempts):
         col1, col2 = "true_vol", f"gen{k + 1}_vol_generated"
         r2, mae = get_metrics(df, col1, col2)
         print_metrics(col1, col2, r2, mae)

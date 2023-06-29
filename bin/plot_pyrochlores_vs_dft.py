@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from pymatgen.core import Composition
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import r2_score
 
@@ -31,8 +32,9 @@ if __name__ == '__main__':
     plt.title('Cell parameter $a$: DFT vs CrystaLLM (mean value over 3 attempts)')
 
     for i, formula in enumerate(df['formula']):
-        xytext = (-54, -16) if formula == "Ce162Hf16O56" else (7, 1)
-        plt.annotate(formula, (df['a_dft'][i], df['a_cif_avg'][i]), xytext=xytext,
+        xytext = (-54, -16) if formula == "Ce16Hf16O56" else (7, 1)
+        comp = Composition(formula).reduced_composition.to_latex_string()
+        plt.annotate(comp, (df['a_dft'][i], df['a_cif_avg'][i]), xytext=xytext,
                      textcoords='offset points', color='gray')
 
     plt.savefig(out_fname)
