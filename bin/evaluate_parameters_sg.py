@@ -28,9 +28,9 @@ def print_metrics(col1, col2, r2, mae):
 if __name__ == '__main__':
     true_cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.test.pkl.gz"
     # this should be a list of lists of k generation attempts, in the same order as the file above
-    generated_cifs_fname = "../out/cif_model_22.evalcifs-sg.pkl.gz"
+    generated_cifs_fname = "../out/cif_model_24.evalcifs-sg.pkl.gz"
     gen_attempts = 3
-    out_fname = "../out/cif_model_22.evalresults-sg.csv"
+    out_fname = "../out/cif_model_24.evalresults-sg.csv"
 
     with gzip.open(true_cifs_fname, "rb") as f:
         true_cifs = pickle.load(f)

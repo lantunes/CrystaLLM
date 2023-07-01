@@ -7,7 +7,7 @@ from sklearn.metrics import r2_score
 
 
 if __name__ == '__main__':
-    result_fname = "../data/pyrochlores-dft-results-cif_model_20_unseen.csv"
+    result_fname = "../data/pyrochlores-dft-results-cif_model_24_unseen.csv"
     out_fname = "../out/pyrochlore_a_dft_vs_gen.pdf"
 
     df = pd.read_csv(result_fname)
