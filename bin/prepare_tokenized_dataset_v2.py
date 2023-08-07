@@ -49,19 +49,12 @@ def preprocess(cifs_raw):
 
 
 if __name__ == '__main__':
-    # train_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.train.pkl.gz"
-    # val_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.val.pkl.gz"
-    # out_dir = "../out/mp_oqmd_nomad_cifs_semisymm_Z_props"
-
-    train_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.pkl.gz"
-    val_fname = ""
-    out_dir = "../out/mp_oqmd_nomad_cifs_semisymm_Z_props_all"
-
+    train_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.train.pkl.gz"
+    val_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.val.pkl.gz"
+    out_dir = "../out/mp_oqmd_nomad_cifs_semisymm_Z_props_v2"
     symmetrized = True
     includes_props = True
     workers = 4
-
-    has_val = len(val_fname) > 0
 
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
@@ -69,16 +62,14 @@ if __name__ == '__main__':
     with gzip.open(train_fname, "rb") as f:
         cifs_raw_train = pickle.load(f)
 
-    if has_val:
-        with gzip.open(val_fname, "rb") as f:
-            cifs_raw_val = pickle.load(f)
+    with gzip.open(val_fname, "rb") as f:
+        cifs_raw_val = pickle.load(f)
 
     # shuffle the order of the train CIFs
     random.shuffle(cifs_raw_train)
 
     cifs_train = preprocess(cifs_raw_train)
-    if has_val:
-        cifs_val = preprocess(cifs_raw_val)
+    cifs_val = preprocess(cifs_raw_val)
 
     # tokenize the train CIFs in parallel
     chunks = array_split(cifs_train, workers)
@@ -108,42 +99,29 @@ if __name__ == '__main__':
     print(f"train mean tokenized length: {np.mean(lens):.2f} +/- {np.std(lens):.2f}")
     print(f"train total unk counts: {np.sum(unk_counts)}")
 
-    if has_val:
-        # tokenize the validation CIFs
-        tokenized_cifs_val = tokenize(cifs_val, symmetrized, includes_props)
+    # tokenize the validation CIFs
+    tokenized_cifs_val = tokenize(cifs_val, symmetrized, includes_props)
 
-        lens = [len(t) for t in tokenized_cifs_val]
-        unk_counts = [t.count("<unk>") for t in tokenized_cifs_val]
-        print(f"val min tokenized length: {np.min(lens):,}")
-        print(f"val max tokenized length: {np.max(lens):,}")
-        print(f"val mean tokenized length: {np.mean(lens):.2f} +/- {np.std(lens):.2f}")
-        print(f"val total unk counts: {np.sum(unk_counts)}")
-
-    # create a single stream of tokens that will be the dataset
-    train_data = []
-    for t in tqdm(tokenized_cifs_train):
-        train_data.extend(t)
-
-    if has_val:
-        val_data = []
-        for t in tqdm(tokenized_cifs_val):
-            val_data.extend(t)
+    lens = [len(t) for t in tokenized_cifs_val]
+    unk_counts = [t.count("<unk>") for t in tokenized_cifs_val]
+    print(f"val min tokenized length: {np.min(lens):,}")
+    print(f"val max tokenized length: {np.max(lens):,}")
+    print(f"val mean tokenized length: {np.mean(lens):.2f} +/- {np.std(lens):.2f}")
+    print(f"val total unk counts: {np.sum(unk_counts)}")
 
     # encode both to integers
     tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
-    train_ids = tokenizer.encode(train_data)
-    print(f"train has {len(train_ids):,} tokens")
-    if has_val:
-        val_ids = tokenizer.encode(val_data)
-        print(f"val has {len(val_ids):,} tokens")
+    train_ids = [tokenizer.encode(t) for t in tokenized_cifs_train]
+    val_ids = [tokenizer.encode(t) for t in tokenized_cifs_val]
+    print(f"train has {sum([len(t) for t in train_ids]):,} tokens")
+    print(f"val has {sum([len(t) for t in val_ids]):,} tokens")
     print(f"vocab size: {len(tokenizer.token_to_id)}")
 
-    # export to bin files
-    train_ids = np.array(train_ids, dtype=np.uint16)
-    train_ids.tofile(os.path.join(out_dir, 'train.bin'))
-    if has_val:
-        val_ids = np.array(val_ids, dtype=np.uint16)
-        val_ids.tofile(os.path.join(out_dir, 'val.bin'))
+    with open(os.path.join(out_dir, 'train.pkl'), 'wb') as f:
+        pickle.dump(train_ids, f)
+
+    with open(os.path.join(out_dir, 'val.pkl'), 'wb') as f:
+        pickle.dump(val_ids, f)
 
     # save the meta information as well, to help us encode/decode later
     meta = {

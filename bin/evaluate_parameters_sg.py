@@ -28,9 +28,9 @@ def print_metrics(col1, col2, r2, mae):
 if __name__ == '__main__':
     true_cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.test.pkl.gz"
     # this should be a list of lists of k generation attempts, in the same order as the file above
-    generated_cifs_fname = "../out/cif_model_24.evalcifs-sg.pkl.gz"
+    generated_cifs_fname = "../out/cif_model_32.evalcifs-sg.pkl.gz"
     gen_attempts = 3
-    out_fname = "../out/cif_model_24.evalresults-sg.csv"
+    out_fname = "../out/cif_model_32.evalresults-sg.csv"
 
     with gzip.open(true_cifs_fname, "rb") as f:
         true_cifs = pickle.load(f)
@@ -123,9 +123,11 @@ if __name__ == '__main__':
                 gamma = np.nan
             results[f"gen{k+1}_gamma"].append(gamma)
 
-            results[f"gen{k+1}_vol_implied"].append(
-                get_unit_cell_volume(a, b, c, alpha, beta, gamma)
-            )
+            try:
+                gen_vol_implied = get_unit_cell_volume(a, b, c, alpha, beta, gamma)
+            except:
+                gen_vol_implied = np.nan
+            results[f"gen{k+1}_vol_implied"].append(gen_vol_implied)
 
     df = pd.DataFrame(results)
     df.to_csv(out_fname, index=False)

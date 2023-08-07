@@ -5,7 +5,8 @@ from tqdm import tqdm
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher, ElementComparator
 
-from lib import extract_data_formula, extract_space_group_symbol, replace_symmetry_operators, remove_atom_props_block
+from lib import extract_data_formula, extract_space_group_symbol, replace_symmetry_operators, remove_atom_props_block, \
+    extract_numeric_property, get_unit_cell_volume
 
 try:
     import cPickle as pickle
@@ -35,9 +36,9 @@ if __name__ == '__main__':
 
     true_cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.test.pkl.gz"
     # this should be a list of lists of k generation attempts, in the same order as the file above
-    generated_cifs_fname = "../out/cif_model_24.evalcifs-sg.pkl.gz"
+    generated_cifs_fname = "../out/cif_model_32.evalcifs-sg.pkl.gz"
     gen_attempts = 3
-    out_fname = "../out/cif_model_24.evalresults-sg-match.csv"
+    out_fname = "../out/cif_model_32.evalresults-sg-match.csv"
 
     with gzip.open(true_cifs_fname, "rb") as f:
         true_cifs = pickle.load(f)
@@ -78,6 +79,16 @@ if __name__ == '__main__':
             gen_cif = clean_cif(gen_cif)
 
             try:
+                # try to calculate the implied volume, to weed out very bad generations;
+                #  an exception will be thrown if a value is missing, or the volume is nonsensical
+                a = extract_numeric_property(gen_cif, "_cell_length_a")
+                b = extract_numeric_property(gen_cif, "_cell_length_b")
+                c = extract_numeric_property(gen_cif, "_cell_length_c")
+                alpha = extract_numeric_property(gen_cif, "_cell_angle_alpha")
+                beta = extract_numeric_property(gen_cif, "_cell_angle_beta")
+                gamma = extract_numeric_property(gen_cif, "_cell_angle_gamma")
+                get_unit_cell_volume(a, b, c, alpha, beta, gamma)
+
                 gen_struct = Structure.from_str(gen_cif, fmt="cif")
                 is_match = struct_matcher.fit(true_struct, gen_struct)
             except Exception as e:

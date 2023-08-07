@@ -379,12 +379,16 @@ class GPT(nn.Module):
         return idx
 
     @torch.no_grad()
-    def generate_batch(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+    def generate_batch(self, idx, max_new_tokens, temperature=1.0, top_k=None, symmetrized=True, includes_props=False):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
+        tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
+        newline_id = tokenizer.token_to_id["\n"]
+        # Initialize a tensor to track whether each sequence in the batch has terminated
+        terminated = torch.zeros(idx.size(0), dtype=torch.bool)
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]
@@ -403,4 +407,16 @@ class GPT(nn.Module):
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
 
-        return idx
+            # For each sequence in the batch, check whether the last two tokens are newline tokens
+            for i in range(idx.size(0)):
+                if not terminated[i] and idx[i, -2:].tolist() == [newline_id, newline_id]:
+                    # If so, mark this sequence as terminated
+                    terminated[i] = True
+
+            # If all sequences in the batch have terminated, stop generating
+            if terminated.all():
+                break
+
+        # Remove everything after the double newline in each item
+        return [row[:next((i + 2 for i, x in enumerate(row.tolist()[:-1]) if x == row[i + 1] == newline_id), len(row))]
+                for row in idx]

@@ -22,7 +22,6 @@ if __name__ == '__main__':
 
     plot_true_vs_predicted(ax, true_y=df[true_col], predicted_y=df[gen_col],
                            metrics=False, alpha=1.,
-                           title="True vs. Generated Cell Length for Matching Structures",
                            xlabel="True Cell Length (Å)", ylabel="Generated Cell Length (Å)",
                            text=text, text_coords=text_coords, rasterize=True)
 

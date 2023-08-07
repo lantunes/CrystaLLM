@@ -1,8 +1,8 @@
 {
-  "model": "cif_model_24.pt",
+  "model": "cif_model_24c.pt",
   "device": "cuda",
   "num_samples": 1,
-  "max_new_tokens": 3000,
+  "max_new_tokens": 1000,
   "temperature": 1.0,
   "top_k": 10,
   "symmetrized": true,

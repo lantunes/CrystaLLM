@@ -2,12 +2,15 @@ import math
 import numpy as np
 import re
 import warnings
-from pymatgen.core import Composition
-from pymatgen.io.cif import CifBlock
-from pymatgen.symmetry.groups import SpaceGroup
-from pymatgen.core.operations import SymmOp
-from pymatgen.analysis.bond_valence import BVAnalyzer
-from pymatgen.transformations.standard_transformations import OxidationStateDecorationTransformation
+try:
+    from pymatgen.core import Composition
+    from pymatgen.io.cif import CifBlock
+    from pymatgen.symmetry.groups import SpaceGroup
+    from pymatgen.core.operations import SymmOp
+    from pymatgen.analysis.bond_valence import BVAnalyzer
+    from pymatgen.transformations.standard_transformations import OxidationStateDecorationTransformation
+except ModuleNotFoundError as e:
+    print(f"module not found: {e}")
 from itertools import permutations
 from sklearn.metrics import mean_absolute_error, r2_score
 

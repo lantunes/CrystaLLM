@@ -1,12 +1,15 @@
-from pymatgen.analysis.local_env import CrystalNN
-from pymatgen.core import Composition, Structure
-from pymatgen.io.cif import CifParser
-from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+try:
+    from pymatgen.analysis.local_env import CrystalNN
+    from pymatgen.core import Composition, Structure
+    from pymatgen.io.cif import CifParser
+    from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+except ModuleNotFoundError as e:
+    print(f"module not found: {e}")
 
 from ._utils import extract_data_formula
 
 
-def bond_length_reasonableness_score(cif_str, tolerance=0.3):
+def bond_length_reasonableness_score(cif_str, tolerance=0.32, h_factor=2.5):
     """
     If a bond length is 30% shorter or longer than the sum of the atomic radii, the score is lower.
     """
@@ -22,8 +25,13 @@ def bond_length_reasonableness_score(cif_str, tolerance=0.3):
     for i, site in enumerate(structure):
         bonded_sites = crystal_nn.get_nn_info(structure, i)
         for connected_site_info in bonded_sites:
+            j = connected_site_info['site_index']
+            if i == j:  # skip if they're the same site
+                continue
             connected_site = connected_site_info['site']
             bond_length = site.distance(connected_site)
+
+            is_hydrogen_bond = "H" in [site.specie.symbol, connected_site.specie.symbol]
 
             electronegativity_diff = abs(site.specie.X - connected_site.specie.X)
             """
@@ -44,9 +52,14 @@ def bond_length_reasonableness_score(cif_str, tolerance=0.3):
 
             bond_ratio = bond_length / expected_length
 
-            # penalize bond lengths that are too short or too long
-            if min_ratio < bond_ratio < max_ratio:
-                score += 1
+            # penalize bond lengths that are too short or too long;
+            #  check if bond involves hydrogen and adjust tolerance accordingly
+            if is_hydrogen_bond:
+                if bond_ratio < h_factor:
+                    score += 1
+            else:
+                if min_ratio < bond_ratio < max_ratio:
+                    score += 1
 
             bond_count += 1
 

@@ -5,12 +5,12 @@ from sklearn.metrics import mean_absolute_error, r2_score
 
 
 if __name__ == '__main__':
-    results_fname = "../out/cif_model_24.evalresults-sg.csv"
-    matches_fname = "../out/cif_model_24.evalresults-sg-match.csv"
+    results_fname = "../out/cif_model_32.evalresults-sg.csv"
+    matches_fname = "../out/cif_model_32.evalresults-sg-match.csv"
     generations = 3
     write_first_match_results = False
-    first_match_results_lengths_out_fname = "../out/cif_model_24.evalresults-sg.first_match_lengths.csv"
-    first_match_results_volume_out_fname = "../out/cif_model_24.evalresults-sg.first_match_volume.csv"
+    first_match_results_lengths_out_fname = "../out/cif_model_32.evalresults-sg.first_match_lengths.csv"
+    first_match_results_volume_out_fname = "../out/cif_model_32.evalresults-sg.first_match_volume.csv"
 
     formula_sg_to_matches = {}
     with open(matches_fname, "rt") as f:
@@ -35,9 +35,17 @@ if __name__ == '__main__':
     first_match_generated_volumes = []
     first_match_implied_volumes = []
 
+    skipped = []
+
     with open(results_fname, "rt") as f:
         reader = csv.DictReader(f, delimiter=",")
         for row in reader:
+            # NaN values end up as empty strings in the csv file;
+            #  we'll skip rows that contain NaN values
+            if "" in row.values():
+                skipped.append(f"{row['formula']} {row['sg']}")
+                continue
+
             formula = row["formula"]
             sg = row["sg"]
 
@@ -75,6 +83,9 @@ if __name__ == '__main__':
                 first_match_implied_volumes.append(float(row[f"gen{match_idx+1}_vol_implied"]))
 
     print(f"All generated (across {generations} generation attempts):")
+
+    for skip in skipped:
+        print(f"skipped: {skip}")
 
     r2_cell_lengths_vs_true = [
         r2_score(all_true_cell_lengths, all_generated_cell_lengths[i]) for i in range(1, generations+1)

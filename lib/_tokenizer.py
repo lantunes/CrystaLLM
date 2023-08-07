@@ -65,9 +65,10 @@ class CIFTokenizer:
         self._tokens.extend(self.symbols())
 
         space_groups = list(self.space_groups())
-        # Replace 'Pm' space group with 'Pm_sg' to disambiguate from atom 'Pm'
-        space_groups[space_groups.index("Pm")] = "Pm_sg"
-        self._tokens.extend(space_groups)
+        # Replace 'Pm' space group with 'Pm_sg' to disambiguate from atom 'Pm',
+        #  or 'P1' with 'P1_sg' to disambiguate from atom 'P' and number '1'
+        space_groups_sg = [sg+"_sg" for sg in space_groups]
+        self._tokens.extend(space_groups_sg)
 
         self._escaped_tokens = [re.escape(token) for token in self._tokens]
         self._escaped_tokens.sort(key=len, reverse=True)
@@ -78,8 +79,10 @@ class CIFTokenizer:
         # a mapping from characters to integers
         self._token_to_id = {ch: i for i, ch in enumerate(self._tokens_with_unk)}
         self._id_to_token = {i: ch for i, ch in enumerate(self._tokens_with_unk)}
-        # map the id of 'Pm_sg' back to 'Pm', for decoding convenience
-        self._id_to_token[self._token_to_id["Pm_sg"]] = "Pm"
+        # map the id of 'Pm_sg' back to 'Pm', or 'P1_sg' to 'P1',
+        #  for decoding convenience
+        for sg in space_groups_sg:
+            self._id_to_token[self.token_to_id[sg]] = sg.replace("_sg", "")
 
     @abstractmethod
     def atoms(self):
@@ -119,8 +122,10 @@ class CIFTokenizer:
 
     def tokenize_cif(self, cif_string, single_spaces=True):
         # Preprocessing step to replace '_symmetry_space_group_name_H-M Pm'
-        #  with '_symmetry_space_group_name_H-M Pm_sg',to disambiguate from atom 'Pm'
-        cif_string = re.sub(r'(_symmetry_space_group_name_H-M *\bPm)\n', r'\1_sg\n', cif_string)
+        #  with '_symmetry_space_group_name_H-M Pm_sg',to disambiguate from atom 'Pm',
+        #  or any space group symbol to avoid problematic cases, like 'P1'
+        spacegroups = "|".join(SPACE_GROUPS)
+        cif_string = re.sub(fr'(_symmetry_space_group_name_H-M *\b({spacegroups}))\n', r'\1_sg\n', cif_string)
 
         # Create a regex pattern by joining the escaped tokens with '|'
         token_pattern = '|'.join(self._escaped_tokens)

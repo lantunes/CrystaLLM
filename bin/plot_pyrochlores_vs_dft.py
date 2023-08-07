@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 from pymatgen.core import Composition
 from sklearn.metrics import mean_absolute_error
@@ -9,33 +10,58 @@ from sklearn.metrics import r2_score
 if __name__ == '__main__':
     result_fname = "../data/pyrochlores-dft-results-cif_model_24_unseen.csv"
     out_fname = "../out/pyrochlore_a_dft_vs_gen.pdf"
+    font_size = 12
 
     df = pd.read_csv(result_fname)
+    x = df['a_dft']
+    y = df['a_cif_avg']
 
     print(df)
 
-    plt.figure(figsize=(12, 6))
+    fig = plt.figure(figsize=(12, 6))
+    ax = fig.add_subplot(111)
+    matplotlib.rc('font', size=font_size)
 
-    plt.errorbar(df['a_dft'], df['a_cif_avg'], yerr=df['a_cif_std'], fmt='o', ecolor='lightgray', capsize=5)
+    ax.errorbar(x, y, yerr=df['a_cif_std'], fmt='o', ecolor='lightgray', capsize=5)
 
-    m, b = np.polyfit(df['a_dft'], df['a_cif_avg'], 1)
-    plt.plot(df['a_dft'], m * df['a_dft'] + b, color='red')
+    m, b = np.polyfit(x, y, 1)
+    ax.plot(x, m * x + b, color='red')
 
-    r2 = r2_score(df['a_cif_avg'], df['a_dft'])
-    mae = mean_absolute_error(df['a_cif_avg'], df['a_dft'])
+    r2 = r2_score(y, x)
+    mae = mean_absolute_error(y, x)
 
-    plt.text(10.35, 10.85, '$R^2$ = {:.2f}'.format(r2), fontsize=12)
-    plt.text(10.35, 10.8, 'MAE = {:.2f}'.format(mae), fontsize=12)
+    plt.text(10.35, 10.85, '$R^2$ = {:.2f}'.format(r2), fontsize=font_size)
+    plt.text(10.35, 10.8, 'MAE = {:.2f}'.format(mae), fontsize=font_size)
 
-    plt.xlabel('DFT (Å)')
-    plt.ylabel('CrystaLLM (Å)')
-    plt.title('Cell parameter $a$: DFT vs CrystaLLM (mean value over 3 attempts)')
+    plt.xlabel('DFT $a$ ($\AA$)')
+    plt.ylabel('CrystaLLM $a$ ($\AA$)')
 
     for i, formula in enumerate(df['formula']):
-        xytext = (-54, -16) if formula == "Ce16Hf16O56" else (7, 1)
+
+        if formula == "Ce16Hf16O56":
+            xytext = (-57, -14)
+        elif formula == "Ce16Mn16O56":
+            xytext = (-62, 6)
+        elif formula == "La16Mn16O56":
+            xytext = (7, 1)
+        elif formula == "La16V16O56":
+            xytext = (-35, -20)
+        elif formula == "Lu16Hf16O56":
+            xytext = (7, 12)
+        elif formula == "Lu16Zr16O56":
+            xytext = (7, -10)
+        elif formula == "Pr16Mn16O56":
+            xytext = (-62, 8)
+        elif formula == "Pr16V16O56":
+            xytext = (-40, 8)
+        elif formula == "Pr16Hf16O56":
+            xytext = (7, 1)
+        else:
+            raise Exception(f"unknown formula {formula}")
+
         comp = Composition(formula).reduced_composition.to_latex_string()
-        plt.annotate(comp, (df['a_dft'][i], df['a_cif_avg'][i]), xytext=xytext,
-                     textcoords='offset points', color='gray')
+        plt.annotate(comp, (x[i], y[i]), xytext=xytext,
+                     textcoords='offset points', color='gray', fontsize=font_size)
 
     plt.savefig(out_fname)
     plt.show()

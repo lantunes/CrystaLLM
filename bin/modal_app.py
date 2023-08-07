@@ -2,6 +2,7 @@ import json
 import torch
 from contextlib import nullcontext
 import traceback
+import itertools
 from pymatgen.core import Composition
 
 from nanoGPT.model import GPTConfig, GPT
@@ -38,6 +39,8 @@ stub = Stub(
         Mount.from_local_file("./lib/spacegroups.txt", remote_path="/root/lib/spacegroups.txt"),
     ],
     gpu="T4",
+    container_idle_timeout=60,
+    timeout=60,
 )
 class CrystaLLMModel:
     def __enter__(self):
@@ -110,26 +113,44 @@ class CrystaLLMModel:
 
         return True, None
 
-    def _generate(self, prompt, tokenizer, model, device, ctx, max_new_tokens, temperature, top_k,
+    def _generate(self, tokenized_prompts, tokenizer, model, device, ctx, max_new_tokens, temperature, top_k,
                   symmetrized, includes_props, bond_length_acceptability_cutoff):
-        print(f"generating from prompt: {prompt}")
-        start_ids = tokenizer.encode(tokenizer.tokenize_cif(prompt))
-        x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
+
+        encoded_prompts = []
+        for tokenized_prompt in tokenized_prompts:
+            print(f"generating from prompt: {''.join(tokenized_prompt).strip()}")
+            start_ids = tokenizer.encode(tokenized_prompt)
+            x = torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...]
+            encoded_prompts.append(x)
+        X = torch.cat(encoded_prompts, dim=0)
+
         generated_content = ""
         with torch.no_grad():
             with ctx:
                 try:
-                    y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
-                                       symmetrized=symmetrized, includes_props=includes_props)
+                    Y = model.generate_batch(X, max_new_tokens, temperature=temperature, top_k=top_k,
+                                             symmetrized=symmetrized, includes_props=includes_props)
 
-                    generated_tokens = y[0].tolist()
-                    print(f"generated length: {len(generated_tokens)}")
-                    generated_content = tokenizer.decode(generated_tokens)
+                    for i in range(len(Y)):
+                        generated_tokens = Y[i].tolist()
 
-                    # replace symmetry operators, remove atom props
-                    generated_content = self._postprocess(generated_content)
+                        print(f"generated length: {len(generated_tokens)}")
+                        generated_content = tokenizer.decode(generated_tokens)
 
-                    valid, msg = self._validate(generated_content, bond_length_acceptability_cutoff)
+                        # replace symmetry operators, remove atom props
+                        generated_content = self._postprocess(generated_content)
+
+                        try:
+                            valid, msg = self._validate(generated_content, bond_length_acceptability_cutoff)
+                            if valid:
+                                first_line = generated_content.split("\n")[0]
+                                print(f"The generated CIF is valid for {first_line}")
+                                break
+                        except Exception as e:
+                            valid = False
+                            msg = f"there was an error validating: {e}"
+                            print(msg)
+                            print(traceback.format_exc())
 
                 except Exception as e:
                     valid = False
@@ -176,7 +197,10 @@ class CrystaLLMModel:
             print(f"Z provided: {Z}")
             comp = Z * reduced_comp
             prompt = self._get_prompt(comp, sg=sg)
-            return self._generate(prompt, tokenizer, model, device, ctx,
+            print(f"tokenizing prompt: {prompt.strip()}")
+            tokenized_prompt = tokenizer.tokenize_cif(prompt)
+            print(f"tokenized prompt: {tokenized_prompt}")
+            return self._generate([tokenized_prompt], tokenizer, model, device, ctx,
                                   max_new_tokens, temperature, top_k, symmetrized,
                                   includes_props, bond_length_acceptability_cutoff)
         else:
@@ -185,15 +209,26 @@ class CrystaLLMModel:
             generated_content = ""
             valid = False
             msg = None
-            for Z in supported_Z:
-                comp = Z * reduced_comp
+
+            comps = [reduced_comp*Z for Z in supported_Z]
+            tokenized_prompts = []
+            for comp in comps:
                 prompt = self._get_prompt(comp, sg=sg)
-                generated_content, valid, msg = self._generate(prompt, tokenizer, model, device, ctx,
+                print(f"tokenizing prompt: {prompt.strip()}")
+                tokenized_prompt = tokenizer.tokenize_cif(prompt)
+                print(f"tokenized prompt: {tokenized_prompt}")
+                tokenized_prompts.append(tokenized_prompt)
+            tokenized_prompts = sorted(tokenized_prompts, key=lambda p: len(p))
+            prompt_groups = [list(group) for _, group in itertools.groupby(tokenized_prompts, len)]
+
+            for prompt_group in prompt_groups:
+                generated_content, valid, msg = self._generate(prompt_group, tokenizer, model, device, ctx,
                                                                max_new_tokens, temperature, top_k, symmetrized,
                                                                includes_props, bond_length_acceptability_cutoff)
                 if valid:
-                    print(f"The generated CIF is valid for Z={Z}, ending search")
+                    print(f"The generated CIF is valid, ending search")
                     break
+
             return generated_content, valid, msg
 
     @method()
@@ -211,6 +246,7 @@ class CrystaLLMModel:
         bond_length_acceptability_cutoff = self.config["bond_length_acceptability_cutoff"]
 
         tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
+        print(f"initialized tokenizer; vocab size: {len(tokenizer.token_to_id)}")
 
         ctx = nullcontext() if device == "cpu" else torch.amp.autocast(device_type=device, dtype=torch.float32)
 
