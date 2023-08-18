@@ -1,4 +1,5 @@
 import zmq
+import time
 
 
 if __name__ == '__main__':
@@ -16,7 +17,9 @@ if __name__ == '__main__':
     socket = context.socket(zmq.REQ)
     socket.connect(f"tcp://localhost:{zmq_port}")
 
+    start = time.time()
     # Send a request and wait for the reply
     socket.send_string(cif)
     message = socket.recv_string()
+    print(f"elapsed: {time.time() - start:.3f} s")
     print(f"received reply: {float(message):.3f}")
