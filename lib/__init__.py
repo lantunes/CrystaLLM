@@ -1,4 +1,4 @@
-from ._tokenizer import get_cif_tokenizer
+from ._tokenizer import get_cif_tokenizer, CIFTokenizer
 
 from ._data import CIFData, populate_cif_data
 
