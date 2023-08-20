@@ -12,7 +12,7 @@ import torch
 from model import GPTConfig, GPT
 from beam_search_sampler import BeamSearchSampler
 
-from lib import get_cif_tokenizer
+from lib import get_cif_tokenizer, ZMQScorer
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -27,6 +27,9 @@ compile = False # use PyTorch 2.0 to compile the model to be faster
 symmetrized = True # whether the CIF files are symmetrized
 includes_props = True # whether CIF files contain an atomic properties section
 beam_width = 3  # the beam width
+min_len = 90  # the minimum length the sequence should have
+use_zmq_scorer = False
+zmq_port = 5555
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -64,10 +67,14 @@ if start.startswith('FILE:'):
     with open(start[5:], 'r', encoding='utf-8') as f:
         start = f.read()
 
+scorer = None
+if use_zmq_scorer:
+    scorer = ZMQScorer(port=zmq_port)
+
 sampler = BeamSearchSampler(model=model, config=gptconf, tokenizer=tokenizer,
-                            k=beam_width, temperature=temperature)
+                            scorer=scorer, k=beam_width, temperature=temperature)
 
-cif, cif_prob = sampler.sample(start, device=device)
+cif, cif_log_prob, cif_score = sampler.sample(start, min_len=min_len, device=device)
 
-print(f"Beam Search found the following CIF with prob {cif_prob}:")
+print(f"Beam Search found the following CIF with log prob {cif_log_prob} (score: {cif_score}):")
 print(cif)

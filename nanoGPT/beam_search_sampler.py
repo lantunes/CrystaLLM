@@ -1,10 +1,11 @@
 import math
+import traceback
 from typing import Tuple, List, Iterable, Callable
 
 import torch
 
 from model import GPT, GPTConfig
-from lib import get_cif_tokenizer, CIFTokenizer
+from lib import CIFTokenizer, CIFScorer
 
 
 class Hypothesis:
@@ -21,14 +22,15 @@ class Hypothesis:
         self.token_sequence = token_sequence
         self.log_prob = log_prob
 
-    def is_complete(self, newline_id: int) -> bool:
+    def is_complete(self, newline_id: int, min_len: int = 90) -> bool:
         """
         Returns True if this hypothesis is complete, and False otherwise.
 
         :param newline_id: the token ID for `\n`
+        :param min_len: the minimum length a sequence should have
         :return: True if the hypothesis is considered complete, and False otherwise
         """
-        return self.token_sequence[-2:] == [newline_id, newline_id]
+        return len(self.token_sequence) >= min_len and self.token_sequence[-2:] == [newline_id, newline_id]
 
 
 class BeamSearchSampler:
@@ -36,32 +38,37 @@ class BeamSearchSampler:
     A sampler that uses beam search to sample the most probable CIF
     from a trained language model.
     """
-    def __init__(self, model: GPT, config: GPTConfig, tokenizer: CIFTokenizer, k=1, temperature=1.0) -> None:
+    def __init__(self, model: GPT, config: GPTConfig, tokenizer: CIFTokenizer,
+                 scorer: CIFScorer = None, k=1, temperature=1.0) -> None:
         """
         Construct an instance of a `BeamSearchSampler`.
 
         :param model: the language model to use during search
         :param config: the GPT config
         :param tokenizer: the CIF tokenizer to use
+        :param scorer: an external scoring for scoring completed CIFs
         :param k: the beam size to use during search
         :param temperature: the temperature to use for scaling the logits
         """
         self._model = model
+        self._model.eval()
         self._config = config
         self._tokenizer = tokenizer
-        self._model.eval()
+        self._scorer = scorer
         self._k = k
         self._temperature = temperature
 
-    def sample(self, start: str, device: str) -> Tuple[str, float]:
+    def sample(self, start: str, min_len: int, device: str) -> Tuple[str, float, float]:
         """
         Sample a CIF from the model, and computes its probability,
         using a beam search strategy.
 
         :param start: the starting prompt
+        :param min_len: the minimum length the sequence should have
         :param device: the device the model has been transferred to
         :return: a CIF
-        :return: the probability of the CIF under the trained model
+        :return: the log probability of the CIF under the trained model
+        :return: the score (the same as the log prob. if no scorer was specified)
         """
         print("sampling...")
 
@@ -87,18 +94,33 @@ class BeamSearchSampler:
                 beam = []
                 # remove completed hypotheses
                 for hypothesis in advanced_beam:
-                    if hypothesis.is_complete(newline_id):
-                        completed.append((hypothesis.token_sequence, hypothesis.log_prob))
+                    if hypothesis.is_complete(newline_id, min_len=min_len):
+                        log_prob = hypothesis.log_prob
+                        cif = decode(hypothesis.token_sequence)
+
+                        # optionally score the completed hypothesis with an external scorer
+                        if self._scorer is not None:
+                            try:
+                                print("invoking external scorer...")
+                                score = self._scorer.score(cif)
+                                print(f"external scorer returned score: {score}")
+                            except Exception as e:
+                                print(f"exception while using external scorer: {e}")
+                                print(traceback.format_exc())
+                                continue
+                        else:
+                            score = log_prob
+
+                        completed.append((cif, log_prob, score))
                     else:
                         beam.append(hypothesis)
 
-        best_hypothesis, best_hypothesis_log_prob = self._sort_descending(completed, key=lambda pair: pair[1])[0]
-        cif = decode(best_hypothesis)
-        prob = math.exp(best_hypothesis_log_prob)
+        if len(completed) > 0:
+            best_cif, best_log_prob, best_score = self._sort_descending(completed, key=lambda comp: comp[2])[0]
+            print(f"best log prob: {best_log_prob:.5f}; best score: {best_score:.5f}")
+            return best_cif, best_log_prob, best_score
 
-        print(f"best log prob: {best_hypothesis_log_prob:.5f}")
-
-        return cif, prob
+        return "", math.nan, math.nan
 
     def _advance_beam(self, beam: List[Hypothesis], child_tokens: List[int], k: int, device: str) -> List[Hypothesis]:
         """
@@ -129,6 +151,9 @@ class BeamSearchSampler:
                 log_prob = dist.log_prob(torch.tensor(child_token, device=device).view(1)).item()
                 new_beam.append(Hypothesis(new_token_sequence, hypothesis.log_prob + log_prob))
 
+        # we will always keep the best hypotheses according to log prob, since only completed
+        #  hypotheses can be scored with an external scorer (e.g. we can't assess formation
+        #  energy of an incomplete CIF)
         scored_new_beam = self._sort_descending(new_beam, key=lambda pair: pair.log_prob)[:k]
 
         return scored_new_beam

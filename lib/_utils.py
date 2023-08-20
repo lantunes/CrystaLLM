@@ -364,3 +364,19 @@ def round_numbers(cif_str, decimal_places=4):
     cif_string_rounded = re.sub(pattern, round_number, cif_str)
 
     return cif_string_rounded
+
+
+class CIFScorer:
+    """
+    An abstract CIF scorer, for external scoring processes.
+    An external scorer provides a heuristic score for completed CIFs.
+    e.g. an external scorer might provide the formation energy of the given CIF
+    """
+    def score(self, cif) -> float:
+        """
+        Returns a score for the CIF. A higher score is better.
+
+        :param cif: the CIF to be scored
+        :return: a float representing the score
+        """
+        pass
