@@ -3,14 +3,12 @@ Sample from a trained model using Beam Search
 """
 import sys
 
-from sympy import beta
-
 sys.path.append(".")
 import os
 from contextlib import nullcontext
 import torch
 from model import GPTConfig, GPT
-from beam_search_sampler import BeamSearchSampler
+from mcts_sampler import MCTSSampler, MCTSEvaluator
 
 from lib import get_cif_tokenizer, ZMQScorer
 
@@ -26,11 +24,15 @@ dtype = 'bfloat16' # 'float32' or 'bfloat16' or 'float16'
 compile = False # use PyTorch 2.0 to compile the model to be faster
 symmetrized = True # whether the CIF files are symmetrized
 includes_props = True # whether CIF files contain an atomic properties section
-beam_width = 3  # the beam width
+tree_width = 10  # the tree width
+max_depth = 1000  # the maximum depth of the tree
+cpuct = 5  # the c_puct constant
+num_simulations = 200  # the number of simulations to perform during search
 min_len = 90  # the minimum length the sequence should have
 bond_length_acceptability_cutoff = 1.0
-score_multiplier = -1  # a factor with which to multiply the scorer's score
-use_zmq_scorer = False
+reward_k = 2.0
+mcts_out_dir = 'mcts'
+use_zmq_scorer = True  # must be True, for now
 zmq_port = 5555
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
@@ -73,12 +75,24 @@ scorer = None
 if use_zmq_scorer:
     scorer = ZMQScorer(port=zmq_port)
 
-sampler = BeamSearchSampler(model=model, config=gptconf, tokenizer=tokenizer,
-                            scorer=scorer, k=beam_width, temperature=temperature,
-                            bond_length_acceptability_cutoff=bond_length_acceptability_cutoff,
-                            score_multiplier=score_multiplier)
+evaluator = MCTSEvaluator(
+    scorer=scorer,
+    tokenizer=tokenizer,
+    bond_length_acceptability_cutoff=bond_length_acceptability_cutoff,
+    reward_k=reward_k,
+    out_dir=mcts_out_dir,
+)
 
-cif, cif_log_prob, cif_score = sampler.sample(start, min_len=min_len, device=device)
+sampler = MCTSSampler(
+    model=model,
+    config=gptconf,
+    width=tree_width,
+    max_depth=max_depth,
+    eval_function=evaluator,
+    cpuct=cpuct,
+    tokenizer=tokenizer,
+    temperature=temperature,
+    device=device,
+)
 
-print(f"Beam Search found the following CIF with log prob {cif_log_prob} (score: {cif_score}):")
-print(cif)
+sampler.search(start, num_simulations)

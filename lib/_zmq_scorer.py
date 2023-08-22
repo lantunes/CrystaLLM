@@ -18,4 +18,4 @@ class ZMQScorer(CIFScorer):
         self._socket.send_string(cif)
         message = self._socket.recv_string()
 
-        return -float(message)
+        return float(message)

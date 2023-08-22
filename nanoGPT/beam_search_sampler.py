@@ -5,7 +5,17 @@ from typing import Tuple, List, Iterable, Callable
 import torch
 
 from model import GPT, GPTConfig
-from lib import CIFTokenizer, CIFScorer
+from lib import (
+    CIFTokenizer,
+    CIFScorer,
+    bond_length_reasonableness_score,
+    is_formula_consistent,
+    is_space_group_consistent,
+    is_atom_site_multiplicity_consistent,
+    extract_space_group_symbol,
+    replace_symmetry_operators,
+    remove_atom_props_block
+)
 
 
 class Hypothesis:
@@ -39,16 +49,19 @@ class BeamSearchSampler:
     from a trained language model.
     """
     def __init__(self, model: GPT, config: GPTConfig, tokenizer: CIFTokenizer,
-                 scorer: CIFScorer = None, k=1, temperature=1.0) -> None:
+                 scorer: CIFScorer = None, k=1, temperature=1.0,
+                 bond_length_acceptability_cutoff=1.0, score_multiplier=-1) -> None:
         """
         Construct an instance of a `BeamSearchSampler`.
 
         :param model: the language model to use during search
         :param config: the GPT config
         :param tokenizer: the CIF tokenizer to use
-        :param scorer: an external scoring for scoring completed CIFs
+        :param scorer: an external scorer for scoring completed CIFs
         :param k: the beam size to use during search
         :param temperature: the temperature to use for scaling the logits
+        :param bond_length_acceptability_cutoff: the bond length acceptability cutoff
+        :param score_multiplier: a factor with which to multiply the score (i.e. 1, or -1)
         """
         self._model = model
         self._model.eval()
@@ -57,6 +70,40 @@ class BeamSearchSampler:
         self._scorer = scorer
         self._k = k
         self._temperature = temperature
+        self._bond_length_acceptability_cutoff = bond_length_acceptability_cutoff
+        self._score_multiplier = score_multiplier
+
+    def _postprocess(self, cif_str):
+        # replace the symmetry operators with the correct operators
+        space_group_symbol = extract_space_group_symbol(cif_str)
+        if space_group_symbol is not None and space_group_symbol != "P 1":
+            cif_str = replace_symmetry_operators(cif_str, space_group_symbol)
+
+        # remove atom props
+        cif_str = remove_atom_props_block(cif_str)
+
+        return cif_str
+
+    def _is_valid(self, generated_cif):
+        if not is_formula_consistent(generated_cif):
+            msg = "the generated CIF is inconsistent in terms of composition"
+            return False, msg
+
+        if not is_atom_site_multiplicity_consistent(generated_cif):
+            msg = "the generated CIF is inconsistent in terms of atom site multiplicity"
+            return False, msg
+
+        bond_length_score = bond_length_reasonableness_score(generated_cif)
+        if bond_length_score < self._bond_length_acceptability_cutoff:
+            msg = f"unreasonable bond lengths detected " \
+                  f"({(1-bond_length_score)*100:.0f}% of bond lengths were found to be unreasonable)"
+            return False, msg
+
+        if not is_space_group_consistent(generated_cif):
+            msg = "the generated CIF is inconsistent in terms of space group"
+            return False, msg
+
+        return True, ""
 
     def sample(self, start: str, min_len: int, device: str) -> Tuple[str, float, float]:
         """
@@ -98,11 +145,22 @@ class BeamSearchSampler:
                         log_prob = hypothesis.log_prob
                         cif = decode(hypothesis.token_sequence)
 
+                        try:
+                            cif = self._postprocess(cif)
+                            valid, msg = self._is_valid(cif)
+                            if not valid:
+                                print(f"CIF invalid: {msg}")
+                                continue
+                        except Exception as e:
+                            print(f"exception while post-processing and validating: {e}")
+                            print(traceback.format_exc())
+                            continue
+
                         # optionally score the completed hypothesis with an external scorer
                         if self._scorer is not None:
                             try:
                                 print("invoking external scorer...")
-                                score = self._scorer.score(cif)
+                                score = self._score_multiplier * self._scorer.score(cif)
                                 print(f"external scorer returned score: {score}")
                             except Exception as e:
                                 print(f"exception while using external scorer: {e}")
