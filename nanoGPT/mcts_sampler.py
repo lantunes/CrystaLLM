@@ -145,6 +145,10 @@ class MCTSEvaluator:
             print(traceback.format_exc())
             return -1.0
 
+        if math.isnan(score):
+            print(f"reward cannot be computed as score is nan")
+            return -1.0
+
         reward = self._get_reward(score)
         print(f"computed reward: {reward}")
 
