@@ -86,7 +86,7 @@ class MCTSEvaluator:
         sigma = np.std(self._all_scores)
         return 1 / (1 + math.e**(self._k*((score - mu)/sigma)))
 
-    def _write_cif_to_file(self, cif, score, reward, id):
+    def _write_cif_to_file(self, cif, score, reward, id, iter_num):
         if self._out_dir is not None:
 
             if not os.path.exists(self._out_dir):
@@ -105,16 +105,16 @@ class MCTSEvaluator:
                 if not os.path.exists(csv_fname):
                     print(f"creating {csv_fname} as it does not exist...")
                     with open(csv_fname, "wt") as f:
-                        f.write("file,score,reward\n")
+                        f.write("file,iteration,score,reward\n")
 
                 # update .csv
                 with open(csv_fname, "a") as f:
-                    f.write(f"{cif_file},{score},{reward}\n")
+                    f.write(f"{cif_file},{iter_num},{score},{reward}\n")
 
             else:
                 print(f"CIF not written to file as it already exists: {cif_fname}")
 
-    def __call__(self, token_sequence):
+    def __call__(self, token_sequence, iter_num):
         cif = self._tokenizer.decode(token_sequence)
 
         try:
@@ -149,7 +149,7 @@ class MCTSEvaluator:
         reward = self._get_reward(score)
         print(f"computed reward: {reward}")
 
-        self._write_cif_to_file(cif, score, reward, self._num_valid)
+        self._write_cif_to_file(cif, score, reward, self._num_valid, iter_num)
 
         return reward
 
@@ -175,8 +175,8 @@ class MCTSSampler:
                           tree_builder=self._tree_builder)
 
         # Perform simulations
-        for i in range(num_simulations):
-            print(f"performing simulation {i+1}...")
+        for iter_num in range(1, num_simulations+1):
+            print(f"performing simulation {iter_num}...")
             node = root_node
 
             # Select
@@ -192,7 +192,7 @@ class MCTSSampler:
             rollout_state = self._lm.rollout(node.state, self._width, self._max_depth, self._newline_id)
 
             # Backpropagate from the expanded node and work back to the root node
-            score = self._eval_function(rollout_state)
+            score = self._eval_function(rollout_state, iter_num)
             while node is not None:
                 node.visits += 1
                 node.wins += score
