@@ -3,10 +3,11 @@ import random
 import math
 from math import sqrt
 import traceback
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import torch
+from torch.nn import functional as F
 
 from model import GPT, GPTConfig
 from lib import (
@@ -20,10 +21,6 @@ from lib import (
     replace_symmetry_operators,
     remove_atom_props_block
 )
-
-
-def is_sequence_complete(token_sequence, newline_id):
-    return len(token_sequence) > 1 and token_sequence[-2:] == [newline_id, newline_id]
 
 
 class MCTSEvaluator:
@@ -160,7 +157,7 @@ class MCTSEvaluator:
 class MCTSSampler:
 
     def __init__(self, model: GPT, config: GPTConfig, width, max_depth, eval_function, cpuct,
-                 tokenizer: CIFTokenizer, temperature: float, device: str):
+                 tokenizer: CIFTokenizer, temperature: float, device: str, tree_builder=None):
         self._width = width
         self._max_depth = max_depth
         self._eval_function = eval_function
@@ -170,10 +167,12 @@ class MCTSSampler:
         child_ids = list(range(len(self._tokenizer.token_to_id)))
         self._lm = _LanguageModel(model, config, child_ids=child_ids, temperature=temperature, device=device)
         self._newline_id = self._tokenizer.token_to_id["\n"]
+        self._tree_builder = tree_builder
 
     def search(self, start: str, num_simulations: int):
         state = self._tokenizer.encode(self._tokenizer.tokenize_cif(start))
-        root_node = _Node(state, self._lm, self._width, self._max_depth, self._cpuct, self._newline_id)
+        root_node = _Node(state, self._lm, self._width, self._max_depth, self._cpuct, self._newline_id,
+                          tree_builder=self._tree_builder)
 
         # Perform simulations
         for i in range(num_simulations):
@@ -190,9 +189,7 @@ class MCTSSampler:
                 node = node.add_child(move_state, self._lm, self._width, self._max_depth, self._cpuct, self._newline_id)
 
             # Rollout
-            rollout_state = list(node.state)
-            while len(rollout_state) < self._max_depth and not is_sequence_complete(rollout_state, self._newline_id):
-                rollout_state += [self._select_next_move_randomly(rollout_state, self._lm, self._width)]
+            rollout_state = self._lm.rollout(node.state, self._width, self._max_depth, self._newline_id)
 
             # Backpropagate from the expanded node and work back to the root node
             score = self._eval_function(rollout_state)
@@ -207,17 +204,12 @@ class MCTSSampler:
         most_visited_node = sorted(root_node.children, key=lambda c: c.visits)[-1]
         return most_visited_node.state
 
-    def _select_next_move_randomly(self, rollout_state: List[int], language_model, width: int) -> int:
-        # TODO consider regular sampling instead (i.e. torch.multinomial(probs, num_samples=1), with k=width)
-        top_n_child_ids, top_n_weights = language_model.top_n_vocab_with_weights(width, rollout_state)
-        return np.random.choice(top_n_child_ids, p=top_n_weights)
-
-    def _store_best(self, rollout_state, score):
+    def _store_best(self, rollout_state: List[int], score: float):
         current_best = self._best_sequence
         if current_best is None or score > current_best[1]:
             self._best_sequence = (rollout_state, score)
 
-    def get_best_sequence(self):
+    def get_best_sequence(self) -> Tuple[List[int], float]:
         return self._best_sequence
 
 
@@ -230,7 +222,33 @@ class _LanguageModel:
         self._device = device
         self._temperature = temperature
 
-    def top_n_vocab_with_weights(self, n, token_sequence):
+    def rollout(self, rollout_state: List[int], width: int, max_depth: int, newline_id: int) -> List[int]:
+        idx = (torch.tensor(rollout_state, dtype=torch.long, device=self._device)[None, ...])
+        prev_id = None
+        for _ in range(max_depth):
+            # if the sequence context is growing too long we must crop it at block_size
+            idx_cond = idx if idx.size(1) <= self._config.block_size else idx[:, -self._config.block_size:]
+            # forward the model to get the logits for the index in the sequence
+            logits, _ = self._model(idx_cond)
+            # pluck the logits at the final step and scale by desired temperature
+            logits = logits[:, -1, :] / self._temperature
+            # optionally crop the logits to only the top k options
+            if width is not None:
+                v, _ = torch.topk(logits, min(width, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float('Inf')
+            # apply softmax to convert logits to (normalized) probabilities
+            probs = F.softmax(logits, dim=-1)
+            # sample from the distribution
+            idx_next = torch.multinomial(probs, num_samples=1)
+            # append sampled index to the running sequence and continue
+            idx = torch.cat((idx, idx_next), dim=1)
+            # a sequence of two newlines indicates the end of a CIF file
+            if prev_id is not None and prev_id == newline_id and idx_next.item() == newline_id:
+                break
+            prev_id = idx_next.item()
+        return idx[0].tolist()
+
+    def top_n_vocab_with_weights(self, n: int, token_sequence: List[int]) -> Tuple[List[int], List[float]]:
         idx = (torch.tensor(token_sequence, dtype=torch.long, device=self._device)[None, ...])
 
         # if the sequence context is growing too long we must crop it at block_size
@@ -257,14 +275,33 @@ class _LanguageModel:
         return top_n_child_ids, top_n_weights
 
     @staticmethod
-    def _normalize(log_probs):
+    def _normalize(log_probs: List[float]) -> List[float]:
         probs = [math.exp(lp) for lp in log_probs]
         prob_factor = 1 / sum(probs)
         return [prob_factor * p for p in probs]
 
 
+class ContextSensitiveTreeBuilder:
+    def __init__(self, tokenizer: CIFTokenizer):
+        self._symbols = [tokenizer.token_to_id[s] for s in tokenizer.symbols()]
+        self._keywords = [tokenizer.token_to_id[k] for k in tokenizer.keywords()]
+
+    def get_child_ids_and_weights(
+        self,
+        top_n_child_ids: List[int],
+        top_n_weights: List[float],
+    ) -> Tuple[List[int], List[float]]:
+
+        top_child_id = top_n_child_ids[0]
+        top_child_weight = top_n_weights[0]
+        if (top_child_id in self._symbols or top_child_id in self._keywords) and top_child_weight > 0.99:
+            return [top_child_id], [1.]
+        return top_n_child_ids, top_n_weights
+
+
 class _Node:
-    def __init__(self, state: List[int], language_model: _LanguageModel, width, max_depth, cpuct, newline_id, parent=None):
+    def __init__(self, state: List[int], language_model: _LanguageModel, width, max_depth, cpuct, newline_id,
+                 parent=None, tree_builder=None):
         self.state = state
         self._cpuct = cpuct
         self._newline_id = newline_id
@@ -275,22 +312,25 @@ class _Node:
         self.visits = 0.0
         self.prob = None
         self.parent = parent
+        self.tree_builder = tree_builder
         self.children = []
         self.untried_moves, self.child_weight_map = self._get_child_states()
+
+    def is_complete(self):
+        return len(self.state) > 1 and self.state[-2:] == [self._newline_id, self._newline_id]
 
     def _get_child_states(self):
         child_states = []
         child_state_weight_map = {}
-        if len(self.state) < self._max_depth and not is_sequence_complete(self.state, self._newline_id):
+        if len(self.state) < self._max_depth and not self.is_complete():
             top_n_child_ids, top_n_weights = self._lm.top_n_vocab_with_weights(self._width, self.state)
+            if self.tree_builder is not None:
+                top_n_child_ids, top_n_weights = self.tree_builder.get_child_ids_and_weights(top_n_child_ids, top_n_weights)
             for i in range(len(top_n_child_ids)):
                 child_state = self.state + [top_n_child_ids[i]]
                 child_states.append(child_state)
                 child_state_weight_map[tuple(child_state)] = top_n_weights[i]
         return child_states, child_state_weight_map
-
-    def _average_value(self):
-        return self.wins / self.visits
 
     def has_untried_moves(self):
         return self.untried_moves != []
@@ -299,7 +339,8 @@ class _Node:
         return random.choice(self.untried_moves)
 
     def add_child(self, child_state, language_model, width, max_depth, c, newline_id):
-        child = _Node(child_state, language_model, width, max_depth, c, newline_id, parent=self)
+        child = _Node(child_state, language_model, width, max_depth, c, newline_id,
+                      parent=self, tree_builder=self.tree_builder)
         child.prob = self.child_weight_map[tuple(child_state)]
         self.children.append(child)
         self.untried_moves.remove(child_state)

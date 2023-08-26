@@ -8,7 +8,7 @@ import os
 from contextlib import nullcontext
 import torch
 from model import GPTConfig, GPT
-from mcts_sampler import MCTSSampler, MCTSEvaluator
+from mcts_sampler import MCTSSampler, MCTSEvaluator, ContextSensitiveTreeBuilder
 
 from lib import get_cif_tokenizer, ZMQScorer
 
@@ -34,6 +34,7 @@ reward_k = 2.0
 mcts_out_dir = 'mcts'
 use_zmq_scorer = True  # must be True, for now
 zmq_port = 5555
+use_context_sensitive_tree_builder = True
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -71,9 +72,7 @@ if start.startswith('FILE:'):
     with open(start[5:], 'r', encoding='utf-8') as f:
         start = f.read()
 
-scorer = None
-if use_zmq_scorer:
-    scorer = ZMQScorer(port=zmq_port)
+scorer = ZMQScorer(port=zmq_port) if use_zmq_scorer else None
 
 evaluator = MCTSEvaluator(
     scorer=scorer,
@@ -82,6 +81,8 @@ evaluator = MCTSEvaluator(
     reward_k=reward_k,
     out_dir=mcts_out_dir,
 )
+
+tree_builder = ContextSensitiveTreeBuilder(tokenizer) if use_context_sensitive_tree_builder else None
 
 sampler = MCTSSampler(
     model=model,
@@ -93,6 +94,7 @@ sampler = MCTSSampler(
     tokenizer=tokenizer,
     temperature=temperature,
     device=device,
+    tree_builder=tree_builder,
 )
 
 sampler.search(start, num_simulations)
