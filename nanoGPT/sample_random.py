@@ -1,5 +1,5 @@
 """
-Sample from a trained model using MCTS
+Sample from a trained model using Beam Search
 """
 import sys
 
@@ -8,7 +8,7 @@ import os
 from contextlib import nullcontext
 import torch
 from model import GPTConfig, GPT
-from mcts_sampler import MCTSSampler, MCTSEvaluator, ContextSensitiveTreeBuilder
+from mcts_sampler import MCTSLanguageModel, MCTSEvaluator
 
 from lib import get_cif_tokenizer, ZMQScorer
 
@@ -24,18 +24,13 @@ dtype = 'bfloat16' # 'float32' or 'bfloat16' or 'float16'
 compile = False # use PyTorch 2.0 to compile the model to be faster
 symmetrized = True # whether the CIF files are symmetrized
 includes_props = True # whether CIF files contain an atomic properties section
-tree_width = 10  # the tree width
-max_depth = 1000  # the maximum depth of the tree
-cpuct = 5.  # the c_puct constant
-num_simulations = 200  # the number of simulations to perform during search
+num_simulations = 200  # the number of simulations to perform
 bond_length_acceptability_cutoff = 1.0
-reward_k = 2.0
-mcts_out_dir = 'mcts'
+top_k = 10
+max_new_tokens = 2000
+eval_out_dir = 'random'
 use_zmq_scorer = True  # must be True, for now
 zmq_port = 5555
-use_context_sensitive_tree_builder = True
-top_child_weight_cutoff = 0.99
-stepwise = False
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -79,43 +74,22 @@ evaluator = MCTSEvaluator(
     scorer=scorer,
     tokenizer=tokenizer,
     bond_length_acceptability_cutoff=bond_length_acceptability_cutoff,
-    reward_k=reward_k,
-    out_dir=mcts_out_dir,
+    reward_k=1.0,  # has no meaning for random sampling
+    out_dir=eval_out_dir,
 )
 
-tree_builder = ContextSensitiveTreeBuilder(top_child_weight_cutoff) if use_context_sensitive_tree_builder else None
-
-sampler = MCTSSampler(
+lm = MCTSLanguageModel(
     model=model,
     config=gptconf,
-    width=tree_width,
-    max_depth=max_depth,
-    eval_function=evaluator,
-    cpuct=cpuct,
-    tokenizer=tokenizer,
+    child_ids=list(range(len(tokenizer.token_to_id))),
     temperature=temperature,
     device=device,
-    tree_builder=tree_builder,
 )
 
-if stepwise:
-    print("performing stepwise search...")
+state = tokenizer.encode(tokenizer.tokenize_cif(start))
+newline_id = tokenizer.token_to_id["\n"]
 
-    while True:
-        print(start)
-        print()
-        # run search and get most visited state
-        most_visited_state = sampler.search(start, num_simulations, stepwise=True)
-        print(f"most visited token: {repr(tokenizer.decode([most_visited_state[-1]]))}")
-        start = tokenizer.decode(most_visited_state)
-        if start[-2:] == ["\n\n"]:
-            break
-
-    print(start)
-    # TODO validate and preprocess cif
-    print("invoking external scorer on final sequence...")
-    score = scorer.score(start)
-    print(f"external scorer returned score: {score}")
-
-else:
-    sampler.search(start, num_simulations, stepwise=False)
+for iter_num in range(1, num_simulations + 1):
+    print(f"performing simulation {iter_num}...")
+    rollout_state = lm.rollout(state, top_k, max_new_tokens, newline_id)
+    evaluator(rollout_state, iter_num)

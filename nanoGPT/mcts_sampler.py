@@ -19,7 +19,9 @@ from lib import (
     is_atom_site_multiplicity_consistent,
     extract_space_group_symbol,
     replace_symmetry_operators,
-    remove_atom_props_block
+    remove_atom_props_block,
+    extract_numeric_property,
+    get_unit_cell_volume,
 )
 
 
@@ -36,6 +38,16 @@ class MCTSEvaluator:
         self._all_cifs = []
 
     def _postprocess(self, cif_str):
+        # try to calculate the implied volume, to weed out very bad generations;
+        #  an exception will be thrown if a value is missing, or the volume is nonsensical
+        a = extract_numeric_property(cif_str, "_cell_length_a")
+        b = extract_numeric_property(cif_str, "_cell_length_b")
+        c = extract_numeric_property(cif_str, "_cell_length_c")
+        alpha = extract_numeric_property(cif_str, "_cell_angle_alpha")
+        beta = extract_numeric_property(cif_str, "_cell_angle_beta")
+        gamma = extract_numeric_property(cif_str, "_cell_angle_gamma")
+        get_unit_cell_volume(a, b, c, alpha, beta, gamma)
+
         # replace the symmetry operators with the correct operators
         space_group_symbol = extract_space_group_symbol(cif_str)
         if space_group_symbol is not None and space_group_symbol != "P 1":
@@ -165,14 +177,21 @@ class MCTSSampler:
         self._cpuct = cpuct
         self._tokenizer = tokenizer
         child_ids = list(range(len(self._tokenizer.token_to_id)))
-        self._lm = _LanguageModel(model, config, child_ids=child_ids, temperature=temperature, device=device)
+        self._lm = MCTSLanguageModel(model, config, child_ids=child_ids, temperature=temperature, device=device)
         self._newline_id = self._tokenizer.token_to_id["\n"]
         self._tree_builder = tree_builder
 
-    def search(self, start: str, num_simulations: int):
+    def search(self, start: str, num_simulations: int, stepwise: bool = False):
         state = self._tokenizer.encode(self._tokenizer.tokenize_cif(start))
         root_node = _Node(state, self._lm, self._width, self._max_depth, self._cpuct, self._newline_id,
                           tree_builder=self._tree_builder)
+
+        if stepwise and len(root_node.untried_moves) == 1:
+            child_state = root_node.untried_moves[0]
+            print(f"returning {repr(self._tokenizer.decode([child_state[-1]]))} as it is the only child")
+            return child_state
+
+        print(f"performing {num_simulations} simulations...")
 
         # Perform simulations
         for iter_num in range(1, num_simulations+1):
@@ -213,7 +232,7 @@ class MCTSSampler:
         return self._best_sequence
 
 
-class _LanguageModel:
+class MCTSLanguageModel:
     def __init__(self, model: GPT, config: GPTConfig, child_ids: List[int], device: str, temperature: float):
         self._model = model
         self._model.eval()
@@ -282,9 +301,8 @@ class _LanguageModel:
 
 
 class ContextSensitiveTreeBuilder:
-    def __init__(self, tokenizer: CIFTokenizer):
-        self._symbols = [tokenizer.token_to_id[s] for s in tokenizer.symbols()]
-        self._keywords = [tokenizer.token_to_id[k] for k in tokenizer.keywords()]
+    def __init__(self, top_child_weight_cutoff: float = 0.99):
+        self._top_child_weight_cutoff = top_child_weight_cutoff
 
     def get_child_ids_and_weights(
         self,
@@ -294,13 +312,13 @@ class ContextSensitiveTreeBuilder:
 
         top_child_id = top_n_child_ids[0]
         top_child_weight = top_n_weights[0]
-        if (top_child_id in self._symbols or top_child_id in self._keywords) and top_child_weight > 0.99:
+        if top_child_weight > self._top_child_weight_cutoff:
             return [top_child_id], [1.]
         return top_n_child_ids, top_n_weights
 
 
 class _Node:
-    def __init__(self, state: List[int], language_model: _LanguageModel, width, max_depth, cpuct, newline_id,
+    def __init__(self, state: List[int], language_model: MCTSLanguageModel, width, max_depth, cpuct, newline_id,
                  parent=None, tree_builder=None):
         self.state = state
         self._cpuct = cpuct
