@@ -8,7 +8,14 @@ import os
 from contextlib import nullcontext
 import torch
 from model import GPTConfig, GPT
-from mcts_sampler import MCTSSampler, MCTSEvaluator, ContextSensitiveTreeBuilder
+from mcts_sampler import (
+    MCTSSampler,
+    MCTSEvaluator,
+    ContextSensitiveTreeBuilder,
+    PUCTSelector,
+    GreedySelector,
+    UCTSelector,
+)
 
 from lib import get_cif_tokenizer, ZMQScorer
 
@@ -26,7 +33,7 @@ symmetrized = True # whether the CIF files are symmetrized
 includes_props = True # whether CIF files contain an atomic properties section
 tree_width = 10  # the tree width
 max_depth = 1000  # the maximum depth of the tree
-cpuct = 5.  # the c_puct constant
+c = 5.  # the selector constant: c_puct for PUCT, c for UCT, epsilon for greedy
 num_simulations = 200  # the number of simulations to perform during search
 bond_length_acceptability_cutoff = 1.0
 reward_k = 2.0
@@ -36,6 +43,7 @@ zmq_port = 5555
 use_context_sensitive_tree_builder = True
 top_child_weight_cutoff = 0.99
 stepwise = False
+selector = 'puct'  # valid values: 'puct', 'uct', 'greedy'
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -85,13 +93,22 @@ evaluator = MCTSEvaluator(
 
 tree_builder = ContextSensitiveTreeBuilder(top_child_weight_cutoff) if use_context_sensitive_tree_builder else None
 
+if selector == "puct":
+    node_selector = PUCTSelector(cpuct=c)
+elif selector == "greedy":
+    node_selector = GreedySelector(epsilon=c)
+elif selector == "uct":
+    node_selector = UCTSelector(c=c)
+else:
+    raise Exception(f"unsupported selector: {selector}")
+
 sampler = MCTSSampler(
     model=model,
     config=gptconf,
     width=tree_width,
     max_depth=max_depth,
     eval_function=evaluator,
-    cpuct=cpuct,
+    node_selector=node_selector,
     tokenizer=tokenizer,
     temperature=temperature,
     device=device,

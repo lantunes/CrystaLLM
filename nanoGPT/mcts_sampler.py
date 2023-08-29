@@ -1,7 +1,7 @@
 import os
 import random
 import math
-from math import sqrt
+from math import sqrt, log
 import traceback
 from typing import List, Tuple
 
@@ -166,72 +166,6 @@ class MCTSEvaluator:
         return reward
 
 
-class MCTSSampler:
-
-    def __init__(self, model: GPT, config: GPTConfig, width, max_depth, eval_function, cpuct,
-                 tokenizer: CIFTokenizer, temperature: float, device: str, tree_builder=None):
-        self._width = width
-        self._max_depth = max_depth
-        self._eval_function = eval_function
-        self._best_sequence = None
-        self._cpuct = cpuct
-        self._tokenizer = tokenizer
-        child_ids = list(range(len(self._tokenizer.token_to_id)))
-        self._lm = MCTSLanguageModel(model, config, child_ids=child_ids, temperature=temperature, device=device)
-        self._newline_id = self._tokenizer.token_to_id["\n"]
-        self._tree_builder = tree_builder
-
-    def search(self, start: str, num_simulations: int, stepwise: bool = False):
-        state = self._tokenizer.encode(self._tokenizer.tokenize_cif(start))
-        root_node = _Node(state, self._lm, self._width, self._max_depth, self._cpuct, self._newline_id,
-                          tree_builder=self._tree_builder)
-
-        if stepwise and len(root_node.untried_moves) == 1:
-            child_state = root_node.untried_moves[0]
-            print(f"returning {repr(self._tokenizer.decode([child_state[-1]]))} as it is the only child")
-            return child_state
-
-        print(f"performing {num_simulations} simulations...")
-
-        # Perform simulations
-        for iter_num in range(1, num_simulations+1):
-            print(f"performing simulation {iter_num}...")
-            node = root_node
-
-            # Select
-            while not node.has_untried_moves() and node.has_children():
-                node = node.select_child()
-
-            # Expand
-            if node.has_untried_moves():
-                move_state = node.select_untried_move()
-                node = node.add_child(move_state, self._lm, self._width, self._max_depth, self._cpuct, self._newline_id)
-
-            # Rollout
-            rollout_state = self._lm.rollout(node.state, self._width, self._max_depth, self._newline_id)
-
-            # Backpropagate from the expanded node and work back to the root node
-            score = self._eval_function(rollout_state, iter_num)
-            while node is not None:
-                node.visits += 1
-                node.wins += score
-                node = node.parent
-
-            self._store_best(rollout_state, score)
-
-        # return the move that was most visited
-        most_visited_node = sorted(root_node.children, key=lambda c: c.visits)[-1]
-        return most_visited_node.state
-
-    def _store_best(self, rollout_state: List[int], score: float):
-        current_best = self._best_sequence
-        if current_best is None or score > current_best[1]:
-            self._best_sequence = (rollout_state, score)
-
-    def get_best_sequence(self) -> Tuple[List[int], float]:
-        return self._best_sequence
-
-
 class MCTSLanguageModel:
     def __init__(self, model: GPT, config: GPTConfig, child_ids: List[int], device: str, temperature: float):
         self._model = model
@@ -317,11 +251,18 @@ class ContextSensitiveTreeBuilder:
         return top_n_child_ids, top_n_weights
 
 
-class _Node:
-    def __init__(self, state: List[int], language_model: MCTSLanguageModel, width, max_depth, cpuct, newline_id,
-                 parent=None, tree_builder=None):
+class MCTSNode:
+    def __init__(
+        self,
+        state: List[int],
+        language_model: MCTSLanguageModel,
+        width: int,
+        max_depth: int,
+        newline_id: int,
+        parent: "MCTSNode" = None,
+        tree_builder=None
+    ):
         self.state = state
-        self._cpuct = cpuct
         self._newline_id = newline_id
         self._lm = language_model
         self._width = width
@@ -356,9 +297,9 @@ class _Node:
     def select_untried_move(self):
         return random.choice(self.untried_moves)
 
-    def add_child(self, child_state, language_model, width, max_depth, c, newline_id):
-        child = _Node(child_state, language_model, width, max_depth, c, newline_id,
-                      parent=self, tree_builder=self.tree_builder)
+    def add_child(self, child_state, language_model, width, max_depth, newline_id):
+        child = MCTSNode(child_state, language_model, width, max_depth, newline_id,
+                         parent=self, tree_builder=self.tree_builder)
         child.prob = self.child_weight_map[tuple(child_state)]
         self.children.append(child)
         self.untried_moves.remove(child_state)
@@ -367,19 +308,151 @@ class _Node:
     def has_children(self):
         return self.children != []
 
-    def select_child(self):
+
+class MCTSNodeSelector:
+    def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
+        pass
+
+
+class PUCTSelector(MCTSNodeSelector):
+
+    def __init__(self, cpuct: float):
+        self._cpuct = cpuct
+
+    def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
         highest_puct = None
-        selected_child_node = None
-        for child_node in self.children:
-            puct = child_node.puct()
+        selected_node = None
+        for node in nodes:
+            puct = self._puct(node)
             if highest_puct is None or highest_puct < puct:
                 highest_puct = puct
-                selected_child_node = child_node
-        return selected_child_node
+                selected_node = node
+        return selected_node
 
-    def puct(self):
-        if self.visits == 0:
+    def _puct(self, node: MCTSNode) -> float:
+        if node.visits == 0:
             return math.inf
-        if self.prob is None:
-            raise Exception("node has no action prob: %s" % self.state)
-        return self.wins / self.visits + self._cpuct * self.prob * (sqrt(self.parent.visits) / (1 + self.visits))
+        if node.prob is None:
+            raise Exception("node has no action prob: %s" % node.state)
+        return node.wins / node.visits + self._cpuct * node.prob * (sqrt(node.parent.visits) / (1 + node.visits))
+
+
+class GreedySelector(MCTSNodeSelector):
+
+    def __init__(self, epsilon: float):
+        self._epsilon = epsilon
+
+    def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
+        if random.random() < self._epsilon:
+            return random.choice(nodes)
+        # return node with the highest value
+        highest_value = None
+        selected_node = None
+        for node in nodes:
+            value = self._value(node)
+            if highest_value is None or highest_value < value:
+                highest_value = value
+                selected_node = node
+        return selected_node
+
+    def _value(self, node: MCTSNode) -> float:
+        return node.wins / node.visits
+
+
+class UCTSelector(MCTSNodeSelector):
+    def __init__(self, c: float):
+        self._c = c
+
+    def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
+        highest_uct = None
+        selected_node = None
+        for node in nodes:
+            uct = self._uct(node)
+            if highest_uct is None or highest_uct < uct:
+                highest_uct = uct
+                selected_node = node
+        return selected_node
+
+    def _uct(self, node: MCTSNode) -> float:
+        if node.visits == 0:
+            return math.inf
+        if node.prob is None:
+            raise Exception("node has no action prob: %s" % node.state)
+        return (node.wins / node.visits) + self._c * sqrt(log(node.parent.visits) / node.visits)
+
+
+class MCTSSampler:
+
+    def __init__(
+        self,
+        model: GPT,
+        config: GPTConfig,
+        width: int,
+        max_depth: int,
+        eval_function,
+        node_selector: MCTSNodeSelector,
+        tokenizer: CIFTokenizer,
+        temperature: float,
+        device: str,
+        tree_builder=None
+    ):
+        self._width = width
+        self._max_depth = max_depth
+        self._eval_function = eval_function
+        self._best_sequence = None
+        self._node_selector = node_selector
+        self._tokenizer = tokenizer
+        child_ids = list(range(len(self._tokenizer.token_to_id)))
+        self._lm = MCTSLanguageModel(model, config, child_ids=child_ids, temperature=temperature, device=device)
+        self._newline_id = self._tokenizer.token_to_id["\n"]
+        self._tree_builder = tree_builder
+
+    def search(self, start: str, num_simulations: int, stepwise: bool = False):
+        state = self._tokenizer.encode(self._tokenizer.tokenize_cif(start))
+        root_node = MCTSNode(state, self._lm, self._width, self._max_depth, self._newline_id,
+                             tree_builder=self._tree_builder)
+
+        if stepwise and len(root_node.untried_moves) == 1:
+            child_state = root_node.untried_moves[0]
+            print(f"returning {repr(self._tokenizer.decode([child_state[-1]]))} as it is the only child")
+            return child_state
+
+        print(f"performing {num_simulations} simulations...")
+
+        # Perform simulations
+        for iter_num in range(1, num_simulations+1):
+            print(f"performing simulation {iter_num}...")
+            node = root_node
+
+            # Select
+            while not node.has_untried_moves() and node.has_children():
+                node = self._node_selector.select_node(node.children)
+
+            # Expand
+            if node.has_untried_moves():
+                move_state = node.select_untried_move()
+                node = node.add_child(move_state, self._lm, self._width, self._max_depth, self._newline_id)
+
+            # Rollout
+            rollout_state = self._lm.rollout(node.state, self._width, self._max_depth, self._newline_id)
+
+            # Backpropagate from the expanded node and work back to the root node
+            score = self._eval_function(rollout_state, iter_num)
+            while node is not None:
+                node.visits += 1
+                node.wins += score
+                node = node.parent
+
+            self._store_best(rollout_state, score)
+
+        # return the move that was most visited
+        most_visited_node = sorted(root_node.children, key=lambda c: c.visits)[-1]
+        return most_visited_node.state
+
+    def _store_best(self, rollout_state: List[int], score: float):
+        current_best = self._best_sequence
+        if current_best is None or score > current_best[1]:
+            self._best_sequence = (rollout_state, score)
+
+    def get_best_sequence(self) -> Tuple[List[int], float]:
+        return self._best_sequence
