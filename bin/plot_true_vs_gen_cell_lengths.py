@@ -23,7 +23,7 @@ if __name__ == '__main__':
     plot_true_vs_predicted(ax, true_y=df[true_col], predicted_y=df[gen_col],
                            metrics=False, alpha=1.,
                            xlabel="True Cell Length (Å)", ylabel="Generated Cell Length (Å)",
-                           text=text, text_coords=text_coords, rasterize=True)
+                           text=text, text_coords=text_coords, rasterize=True, show_grid=False)
 
     plt.savefig(out_fname)
     plt.show()

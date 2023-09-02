@@ -89,7 +89,8 @@ def abs_r_score(actual, predicted):
 def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multiplier=None, ylabel="predicted",
                            min_extra=1, max_extra=1, text=None, text_coords=None, metrics=True,
                            alpha=None, title=None, trim_lims=False, size=3, color="lightblue",
-                           legend_labels=None, legend_fontsize=6, legend_title=None, legend_loc=None, rasterize=False):
+                           legend_labels=None, legend_fontsize=6, legend_title=None, legend_loc=None,
+                           rasterize=False, show_grid=True):
 
     n_outliers_removed = 0
 
@@ -115,7 +116,8 @@ def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multi
         ax.set_ylim(line_start, line_end)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.grid(alpha=0.2)
+    if show_grid:
+        ax.grid(alpha=0.2)
 
     if title is not None:
         ax.set_title(title)
