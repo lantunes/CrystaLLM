@@ -235,14 +235,26 @@ class MCTSLanguageModel:
 
 
 class ContextSensitiveTreeBuilder:
-    def __init__(self, top_child_weight_cutoff: float = 0.99):
+    def __init__(
+        self,
+        tokenizer: CIFTokenizer,
+        top_child_weight_cutoff: float = 0.99,
+        n_space_groups: int = 0,
+    ):
+        self._tok = tokenizer
         self._top_child_weight_cutoff = top_child_weight_cutoff
+        self._n_space_groups = n_space_groups
 
     def get_child_ids_and_weights(
         self,
+        state: List[int],
         top_n_child_ids: List[int],
         top_n_weights: List[float],
+        language_model: MCTSLanguageModel,
     ) -> Tuple[List[int], List[float]]:
+
+        if len(state) > 1 and state[-2:] == [self._tok.token_to_id["_symmetry_space_group_name_H-M"], self._tok.token_to_id[" "]] and self._n_space_groups > 0:
+            return language_model.top_n_vocab_with_weights(self._n_space_groups, state)
 
         top_child_id = top_n_child_ids[0]
         top_child_weight = top_n_weights[0]
@@ -260,7 +272,7 @@ class MCTSNode:
         max_depth: int,
         newline_id: int,
         parent: "MCTSNode" = None,
-        tree_builder=None
+        tree_builder: ContextSensitiveTreeBuilder = None,
     ):
         self.state = state
         self._newline_id = newline_id
@@ -284,7 +296,7 @@ class MCTSNode:
         if len(self.state) < self._max_depth and not self.is_complete():
             top_n_child_ids, top_n_weights = self._lm.top_n_vocab_with_weights(self._width, self.state)
             if self.tree_builder is not None:
-                top_n_child_ids, top_n_weights = self.tree_builder.get_child_ids_and_weights(top_n_child_ids, top_n_weights)
+                top_n_child_ids, top_n_weights = self.tree_builder.get_child_ids_and_weights(self.state, top_n_child_ids, top_n_weights, self._lm)
             for i in range(len(top_n_child_ids)):
                 child_state = self.state + [top_n_child_ids[i]]
                 child_states.append(child_state)

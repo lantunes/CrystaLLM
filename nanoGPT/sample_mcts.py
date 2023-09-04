@@ -44,6 +44,7 @@ use_context_sensitive_tree_builder = True
 top_child_weight_cutoff = 0.99
 stepwise = False
 selector = 'puct'  # valid values: 'puct', 'uct', 'greedy'
+n_space_groups = 0
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -91,7 +92,11 @@ evaluator = MCTSEvaluator(
     out_dir=mcts_out_dir,
 )
 
-tree_builder = ContextSensitiveTreeBuilder(top_child_weight_cutoff) if use_context_sensitive_tree_builder else None
+tree_builder = ContextSensitiveTreeBuilder(
+    tokenizer=tokenizer,
+    top_child_weight_cutoff=top_child_weight_cutoff,
+    n_space_groups=n_space_groups,
+) if use_context_sensitive_tree_builder else None
 
 if selector == "puct":
     node_selector = PUCTSelector(cpuct=c)
