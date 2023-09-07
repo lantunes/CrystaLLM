@@ -3,7 +3,7 @@ import random
 import math
 from math import sqrt, log
 import traceback
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 import torch
@@ -240,26 +240,46 @@ class ContextSensitiveTreeBuilder:
         tokenizer: CIFTokenizer,
         top_child_weight_cutoff: float = 0.99,
         n_space_groups: int = 0,
+        bypass_only_child: bool = False,
     ):
         self._tok = tokenizer
         self._top_child_weight_cutoff = top_child_weight_cutoff
         self._n_space_groups = n_space_groups
+        self._bypass_only_child = bypass_only_child
 
     def get_child_ids_and_weights(
         self,
         state: List[int],
         top_n_child_ids: List[int],
         top_n_weights: List[float],
-        language_model: MCTSLanguageModel,
-    ) -> Tuple[List[int], List[float]]:
+        lm: MCTSLanguageModel,
+        width: int,
+        newline_id: int,
+    ) -> Tuple[Union[List[int], List[List[int]]], List[float]]:
 
         if len(state) > 1 and state[-2:] == [self._tok.token_to_id["_symmetry_space_group_name_H-M"], self._tok.token_to_id[" "]] and self._n_space_groups > 0:
-            return language_model.top_n_vocab_with_weights(self._n_space_groups, state)
+            return lm.top_n_vocab_with_weights(self._n_space_groups, state)
 
         top_child_id = top_n_child_ids[0]
         top_child_weight = top_n_weights[0]
         if top_child_weight > self._top_child_weight_cutoff:
+
+            if self._bypass_only_child:
+                only_children = []
+                while top_child_weight > self._top_child_weight_cutoff:
+                    only_children.append(top_child_id)
+                    new_state = state + only_children
+                    if MCTSNode.is_complete(new_state, newline_id):
+                        return [only_children], [1.]
+                    top_n_child_ids, top_n_weights = lm.top_n_vocab_with_weights(width, new_state)
+                    top_child_id = top_n_child_ids[0]
+                    top_child_weight = top_n_weights[0]
+
+                top_n_extended_child_ids = [only_children + [child_id] for child_id in top_n_child_ids]
+                return top_n_extended_child_ids, top_n_weights
+
             return [top_child_id], [1.]
+
         return top_n_child_ids, top_n_weights
 
 
@@ -287,18 +307,23 @@ class MCTSNode:
         self.children = []
         self.untried_moves, self.child_weight_map = self._get_child_states()
 
-    def is_complete(self):
-        return len(self.state) > 1 and self.state[-2:] == [self._newline_id, self._newline_id]
+    @staticmethod
+    def is_complete(state: List[int], newline_id: int):
+        return len(state) > 1 and state[-2:] == [newline_id, newline_id]
 
     def _get_child_states(self):
         child_states = []
         child_state_weight_map = {}
-        if len(self.state) < self._max_depth and not self.is_complete():
+        if len(self.state) < self._max_depth and not self.is_complete(self.state, self._newline_id):
             top_n_child_ids, top_n_weights = self._lm.top_n_vocab_with_weights(self._width, self.state)
             if self.tree_builder is not None:
-                top_n_child_ids, top_n_weights = self.tree_builder.get_child_ids_and_weights(self.state, top_n_child_ids, top_n_weights, self._lm)
+                top_n_child_ids, top_n_weights = self.tree_builder.get_child_ids_and_weights(
+                    self.state, top_n_child_ids, top_n_weights, self._lm, self._width, self._newline_id)
             for i in range(len(top_n_child_ids)):
-                child_state = self.state + [top_n_child_ids[i]]
+                if type(top_n_child_ids[i]) == list:
+                    child_state = self.state + top_n_child_ids[i]
+                else:
+                    child_state = self.state + [top_n_child_ids[i]]
                 child_states.append(child_state)
                 child_state_weight_map[tuple(child_state)] = top_n_weights[i]
         return child_states, child_state_weight_map
