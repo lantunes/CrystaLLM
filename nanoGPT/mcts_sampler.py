@@ -431,7 +431,7 @@ class MCTSSampler:
         tokenizer: CIFTokenizer,
         temperature: float,
         device: str,
-        tree_builder=None
+        tree_builder=None,
     ):
         self._width = width
         self._max_depth = max_depth
@@ -444,7 +444,7 @@ class MCTSSampler:
         self._newline_id = self._tokenizer.token_to_id["\n"]
         self._tree_builder = tree_builder
 
-    def search(self, start: str, num_simulations: int, stepwise: bool = False):
+    def search(self, start: str, num_simulations: int, stepwise: bool = False, n_rollouts: int = 1):
         state = self._tokenizer.encode(self._tokenizer.tokenize_cif(start))
         root_node = MCTSNode(state, self._lm, self._width, self._max_depth, self._newline_id,
                              tree_builder=self._tree_builder)
@@ -471,16 +471,19 @@ class MCTSSampler:
                 node = node.add_child(move_state, self._lm, self._width, self._max_depth, self._newline_id)
 
             # Rollout
-            rollout_state = self._lm.rollout(node.state, self._width, self._max_depth, self._newline_id)
+            rollout_scores = []
+            for _ in range(n_rollouts):
+                rollout_state = self._lm.rollout(node.state, self._width, self._max_depth, self._newline_id)
+                rollout_score = self._eval_function(rollout_state, iter_num)
+                self._store_best(rollout_state, rollout_score)
+                rollout_scores.append(rollout_score)
+            score = np.mean(rollout_scores)
 
             # Backpropagate from the expanded node and work back to the root node
-            score = self._eval_function(rollout_state, iter_num)
             while node is not None:
                 node.visits += 1
                 node.wins += score
                 node = node.parent
-
-            self._store_best(rollout_state, score)
 
         # return the move that was most visited
         most_visited_node = sorted(root_node.children, key=lambda c: c.visits)[-1]

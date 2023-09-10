@@ -46,6 +46,7 @@ stepwise = False
 selector = 'puct'  # valid values: 'puct', 'uct', 'greedy'
 n_space_groups = 0
 bypass_only_child = False
+n_rollouts = 1  # the number of rollouts to perform per simulation
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -142,4 +143,4 @@ if stepwise:
     print(f"external scorer returned score: {score}")
 
 else:
-    sampler.search(start, num_simulations, stepwise=False)
+    sampler.search(start, num_simulations, stepwise=False, n_rollouts=n_rollouts)
