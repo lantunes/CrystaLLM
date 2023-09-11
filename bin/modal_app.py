@@ -24,6 +24,7 @@ image = (
         "tiktoken==0.3.2",
         "transformers==4.27.3",
         "pymatgen==2023.3.23",
+        "pyzmq==25.1.1",
     )
 )
 stub = Stub(
@@ -33,7 +34,7 @@ stub = Stub(
 
 
 @stub.cls(
-    shared_volumes={"/crystallm_volume": modal.SharedVolume.from_name("crystallm-volume")},
+    network_file_systems={"/crystallm_volume": modal.NetworkFileSystem.from_name("crystallm-volume")},
     mounts=[
         Mount.from_local_dir("./modal_app_config", remote_path="/root"),
         Mount.from_local_file("./lib/spacegroups.txt", remote_path="/root/lib/spacegroups.txt"),
