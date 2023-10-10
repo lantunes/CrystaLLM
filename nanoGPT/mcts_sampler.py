@@ -91,8 +91,8 @@ class MCTSEvaluator:
         lower scores are better, provide a positive k value.
         """
         self._all_scores.append(score)
-        if len(self._all_scores) == 1:
-            # when we only have a single sample, the reward should be 0.5
+        if len(self._all_scores) == 1 or len(np.unique(self._all_scores)) == 1:
+            # when we only have a single sample, or all scores are the same, the reward should be 0.5
             return 0.5
         mu = np.mean(self._all_scores)
         sigma = np.std(self._all_scores)
