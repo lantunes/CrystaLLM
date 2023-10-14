@@ -64,6 +64,15 @@ def read_challenge_set(challenge_set_path):
     return challenge_set
 
 
+def get_formulas_to_process(challenge_set, formulas_to_process):
+    formulas = challenge_set.keys()
+    if formulas_to_process is not None and formulas_to_process != "":
+        print(f"reading formulas to process from {formulas_to_process} ...")
+        with open(formulas_to_process, "rt") as f:
+            formulas = [formula for formula in f.read().split("\n") if formula != ""]
+    return formulas
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Perform Challenge")
 
@@ -87,6 +96,9 @@ if __name__ == '__main__':
     parser.add_argument('--include_space_group', action='store_true', default=False,
                         help='Include the space group in the prompt')
     parser.add_argument('--compile', action='store_true', default=False, help='Compile model')
+    parser.add_argument('--formulas', type=str, required=False, default='',
+                        help='Path to file with list of formulas in Challenge set to be processed '
+                             '(all formulas will be processed if this is not provided)')
 
     args = parser.parse_args()
 
@@ -107,6 +119,7 @@ if __name__ == '__main__':
     bond_length_acceptability_cutoff = args.bond_length_acceptability_cutoff
     include_space_group = args.include_space_group
     compile = args.compile
+    formulas_to_process = args.formulas
 
     if not os.path.exists(out_dir):
         print(f"creating {out_dir} as it does not exist...")
@@ -135,7 +148,10 @@ if __name__ == '__main__':
     results_header = ["formula", "validity_rate", "mean_E", "min_E"]
     results = []
 
-    for formula in challenge_set:
+    formulas = get_formulas_to_process(challenge_set, formulas_to_process)
+    print(f"formulas to process: {formulas}")
+
+    for formula in formulas:
         print(f"processing {formula} ...")
 
         if include_space_group:
