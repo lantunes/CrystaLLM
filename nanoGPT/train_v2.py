@@ -201,16 +201,31 @@ def get_x_y(sample):
 
 @torch.no_grad()
 def estimate_loss():
-    losses = torch.zeros(len(val_data))
+    out = {}
     model.eval()
+
+    # val error
+    losses = torch.zeros(len(val_data))
     for k in tqdm(range(len(val_data))):
         sample = val_data[k]
         x, y = get_x_y(sample)
         with ctx:
             logits, loss = model(x, y)
         losses[k] = loss.item()
-    model.train()
-    return losses.mean()
+    out['val'] = losses.mean()
+
+    # estimate of train error
+    indices = np.random.choice(list(range(len(train_data))), len(val_data))
+    losses = torch.zeros(len(indices))
+    for i, k in tqdm(enumerate(indices)):
+        sample = train_data[k]
+        x, y = get_x_y(sample)
+        with ctx:
+            logits, loss = model(x, y)
+        losses[i] = loss.item()
+    out['train'] = losses.mean()
+
+    return out
 
 
 batches = array_split(train_data, round(len(train_data)/batch_size))
@@ -224,10 +239,10 @@ running_mfu = -1.0
 while True:
 
     if iter_num % eval_interval == 0:
-        val_loss = estimate_loss()
-        print(f"eval iter {iter_num}:  val loss {val_loss:.4f}")
-        if val_loss < best_val_loss or always_save_checkpoint:
-            best_val_loss = val_loss
+        losses = estimate_loss()
+        print(f"eval iter {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+        if losses['val'] < best_val_loss or always_save_checkpoint:
+            best_val_loss = losses['val']
             if iter_num > 0:
                 checkpoint = {
                     'model': raw_model.state_dict(),

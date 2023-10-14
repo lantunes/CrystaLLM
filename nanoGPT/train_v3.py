@@ -38,7 +38,8 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 out_dir = 'out'
 eval_interval = 2000
 log_interval = 1
-eval_iters = 200
+eval_iters_train = 200
+eval_iters_val = 200
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
@@ -115,12 +116,19 @@ train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mod
 val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r') if validate else None
 with open(os.path.join(data_dir, 'starts.pkl'), 'rb') as f:
     cif_start_indices = torch.tensor(pickle.load(f))  # should be sorted
+cif_start_indices_val = None
+if validate:
+    with open(os.path.join(data_dir, 'starts_val.pkl'), 'rb') as f:
+        cif_start_indices_val = torch.tensor(pickle.load(f))  # should be sorted
 with open(os.path.join(data_dir, 'starts_underrep.pkl'), 'rb') as f:
     cif_start_indices_underrep = torch.tensor(pickle.load(f))  # should be sorted
 # Remove indices that would result in out-of-bounds sequences
 max_start_index = len(train_data) - block_size
 cif_start_indices = cif_start_indices[cif_start_indices <= max_start_index]
 cif_start_indices_underrep = cif_start_indices_underrep[cif_start_indices_underrep <= max_start_index]
+if validate:
+    max_start_index = len(val_data) - block_size
+    cif_start_indices_val = cif_start_indices_val[cif_start_indices_val <= max_start_index]
 
 
 def get_batch(split):
@@ -133,7 +141,7 @@ def get_batch(split):
         else:
             ix = cif_start_indices[torch.randperm(len(cif_start_indices))[:batch_size]]
     else:
-        ix = torch.randint(len(data) - block_size, (batch_size,))
+        ix = cif_start_indices_val[torch.randperm(len(cif_start_indices_val))[:batch_size]]
 
     x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
     y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
@@ -230,7 +238,7 @@ if ddp:
 def estimate_loss():
     out = {}
     model.eval()
-    for split in ['train', 'val']:
+    for split, eval_iters in [('train', eval_iters_train), ('val', eval_iters_val)]:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(split)
