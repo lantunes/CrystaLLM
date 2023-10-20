@@ -7,7 +7,15 @@ import pandas as pd
 import csv
 from model import GPTConfig, GPT
 from zipfile import ZipFile
-from mcts_sampler import MCTSLanguageModel, MCTSEvaluator
+from mcts_sampler import (
+    MCTSSampler,
+    MCTSEvaluator,
+    MCTSLanguageModel,
+    ContextSensitiveTreeBuilder,
+    PUCTSelector,
+    GreedySelector,
+    UCTSelector,
+)
 
 from lib import get_cif_tokenizer, ZMQScorer
 
@@ -73,6 +81,63 @@ def get_formulas_to_process(challenge_set, formulas_to_process):
     return formulas
 
 
+def perform_random_sampling(state, lm, num_gens, evaluator, top_k, max_new_tokens, newline_id):
+    for iter_num in range(1, num_gens + 1):
+        print(f"performing simulation {iter_num}...")
+        rollout_state = lm.rollout(state, top_k, max_new_tokens, newline_id)
+        evaluator(rollout_state, iter_num)
+
+
+def perform_mcts_sampling(
+    start,
+    model,
+    gptconf,
+    num_gens,
+    evaluator,
+    tokenizer,
+    top_child_weight_cutoff,
+    n_space_groups,
+    bypass_only_child,
+    selector,
+    c,
+    top_k,
+    max_new_tokens,
+    n_rollouts,
+    temperature,
+    device,
+):
+    tree_builder = ContextSensitiveTreeBuilder(
+        tokenizer=tokenizer,
+        top_child_weight_cutoff=top_child_weight_cutoff,
+        n_space_groups=n_space_groups,
+        bypass_only_child=bypass_only_child,
+    )
+
+    if selector == "puct":
+        node_selector = PUCTSelector(cpuct=c)
+    elif selector == "greedy":
+        node_selector = GreedySelector(epsilon=c)
+    elif selector == "uct":
+        node_selector = UCTSelector(c=c)
+    else:
+        raise Exception(f"unsupported selector: {selector}")
+
+    sampler = MCTSSampler(
+        model=model,
+        config=gptconf,
+        width=top_k,
+        max_depth=max_new_tokens,
+        eval_function=evaluator,
+        node_selector=node_selector,
+        tokenizer=tokenizer,
+        temperature=temperature,
+        device=device,
+        tree_builder=tree_builder,
+    )
+
+    sampler.search(start, num_gens, stepwise=False, n_rollouts=n_rollouts)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Perform Challenge")
 
@@ -99,6 +164,21 @@ if __name__ == '__main__':
     parser.add_argument('--formulas', type=str, required=False, default='',
                         help='Path to file with list of formulas in Challenge set to be processed '
                              '(all formulas will be processed if this is not provided)')
+    parser.add_argument('--mcts', action='store_true', default=False, help='Perform MCTS instead of random sampling')
+    parser.add_argument('--n_space_groups', type=int, required=False, default=0,
+                        help='The number of space groups to use when expanding (MCTS only)')
+    parser.add_argument('--selector', type=str, required=False, choices=['puct', 'uct', 'greedy'], default='puct',
+                        help='The selection algorithm for MCTS (MCTS only)')
+    parser.add_argument('--c', type=float, required=False, default=5.,
+                        help='The MCTS selector constant: c_puct for PUCT, c for UCT, epsilon for greedy (MCTS only)')
+    parser.add_argument('--reward_k', type=float, required=False, default=2.0,
+                        help='The reward scaling factor (MCTS only)')
+    parser.add_argument('--top_child_weight_cutoff', type=float, required=False, default=0.9999,
+                        help='The top child weight cutoff (MCTS only)')
+    parser.add_argument('--bypass_only_child', action='store_true', default=False,
+                        help='Whether to bypass the only child (MCTS only)')
+    parser.add_argument('--n_rollouts', type=int, required=False, default=1,
+                        help='The number of rollouts to perform per simulation (MCTS only)')
 
     args = parser.parse_args()
 
@@ -120,6 +200,14 @@ if __name__ == '__main__':
     include_space_group = args.include_space_group
     compile = args.compile
     formulas_to_process = args.formulas
+    perform_mcts = args.mcts
+    n_space_groups = args.n_space_groups
+    selector = args.selector
+    selector_c = args.c
+    reward_k = args.reward_k
+    top_child_weight_cutoff = args.top_child_weight_cutoff
+    bypass_only_child = args.bypass_only_child
+    n_rollouts = args.n_rollouts
 
     if not os.path.exists(out_dir):
         print(f"creating {out_dir} as it does not exist...")
@@ -173,10 +261,35 @@ if __name__ == '__main__':
         state = tokenizer.encode(tokenizer.tokenize_cif(start))
         newline_id = tokenizer.token_to_id["\n"]
 
-        for iter_num in range(1, num_gens + 1):
-            print(f"performing simulation {iter_num}...")
-            rollout_state = lm.rollout(state, top_k, max_new_tokens, newline_id)
-            evaluator(rollout_state, iter_num)
+        if perform_mcts:
+            perform_mcts_sampling(
+                start,
+                model,
+                gptconf,
+                num_gens,
+                evaluator,
+                tokenizer,
+                top_child_weight_cutoff,
+                n_space_groups,
+                bypass_only_child,
+                selector,
+                selector_c,
+                top_k,
+                max_new_tokens,
+                n_rollouts,
+                temperature,
+                device,
+            )
+        else:
+            perform_random_sampling(
+                state,
+                lm,
+                num_gens,
+                evaluator,
+                top_k,
+                max_new_tokens,
+                newline_id,
+            )
 
         # read results .csv
         results_csv_path = os.path.join(formula_dir, "results.csv")
