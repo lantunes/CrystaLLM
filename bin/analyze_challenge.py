@@ -10,7 +10,6 @@ from pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies impo
 from pymatgen.analysis.chemenv.coordination_environments.coordination_geometries import AllCoordinationGeometries
 from pymatgen.analysis.chemenv.coordination_environments.coordination_geometry_finder import LocalGeometryFinder
 from pymatgen.analysis.chemenv.utils.chemenv_errors import NeighborsNotComputedChemenvError
-from pymatgen.io.cif import CifParser
 
 import warnings
 warnings.filterwarnings("ignore")
