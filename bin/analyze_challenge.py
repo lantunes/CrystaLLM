@@ -47,28 +47,28 @@ def read_challenge_set(challenge_set_path):
     return challenge_set, training_set_formulas
 
 
-def get_best_cif(challenge_path, formula):
+def get_min_cif(challenge_path, formula):
     results_path = os.path.join(challenge_path, formula, "results.csv")
-    best_score = float("inf")
-    best_cif_fname = None
+    min_score = float("inf")
+    min_cif_fname = None
     with open(results_path, "rt") as f:
         reader = csv.reader(f)
         next(reader)  # skip header
         for line in reader:
             cif_fname = line[0]
             score = float(line[2])
-            if score < best_score:
-                best_score = score
-                best_cif_fname = cif_fname
-    best_cif_path = os.path.join(challenge_path, formula, best_cif_fname)
-    with open(best_cif_path, "rt") as f:
-        best_cif = f.read()
-    return best_cif
+            if score < min_score:
+                min_score = score
+                min_cif_fname = cif_fname
+    min_cif_path = os.path.join(challenge_path, formula, min_cif_fname)
+    with open(min_cif_path, "rt") as f:
+        min_cif = f.read()
+    return min_cif
 
 
 def read_results_csv(challenge_path):
     results_path = os.path.join(challenge_path, "results.csv")
-    # map from formula -> {"validity_rate": <float>, "mean_E": <float>, "min_E": <float>, "best_cif": <str>}
+    # map from formula -> {"validity_rate": <float>, "mean_E": <float>, "min_E": <float>, "min_cif": <str>}
     results = {}
     with open(results_path, "rt") as f:
         reader = csv.reader(f)
@@ -78,12 +78,12 @@ def read_results_csv(challenge_path):
             validity_rate = float(line[1])
             mean_E = float(line[2])
             min_E = float(line[3])
-            best_cif = get_best_cif(challenge_path, formula) if validity_rate > 0 else None
+            min_cif = get_min_cif(challenge_path, formula) if validity_rate > 0 else None
             results[formula] = {
                 "validity_rate": validity_rate,
                 "mean_E": mean_E,
                 "min_E": min_E,
-                "best_cif": best_cif,
+                "min_cif": min_cif,
             }
     return results
 
@@ -93,8 +93,8 @@ def read_props(fname, formula):
     validity_rate = results[formula]["validity_rate"] if formula in results else 0.0
     min_E = results[formula]["min_E"] if formula in results else float("nan")
     mean_E = results[formula]["mean_E"] if formula in results else float("nan")
-    best_cif = results[formula]["best_cif"] if formula in results else None
-    return validity_rate, min_E, mean_E, best_cif
+    min_cif = results[formula]["min_cif"] if formula in results else None
+    return validity_rate, min_E, mean_E, min_cif
 
 
 def read_alignn_energies(fname):
@@ -123,11 +123,11 @@ def is_valid_on_first(formula_dir):
     return False
 
 
-def matches_true(true_cif, best_cif, struct_matcher):
-    if best_cif is None:
+def matches_true(true_cif, gen_cif, struct_matcher):
+    if gen_cif is None:
         return False
     true_struct = Structure.from_str(true_cif, fmt="cif")
-    gen_struct = Structure.from_str(best_cif, fmt="cif")
+    gen_struct = Structure.from_str(gen_cif, fmt="cif")
     try:
         is_match = struct_matcher.fit(true_struct, gen_struct)
     except Exception as e:
@@ -204,6 +204,33 @@ def write_cif_and_envs(root_dir, formula, cif, name, distance_cutoff, angle_cuto
     write_file(root_dir, formula, environments, f"{name}_envs.txt")
 
 
+def get_best_match(true_cif, challenge_path, formula, struct_matcher):
+    results_path = os.path.join(challenge_path, formula)
+    has_match = False
+    best_rmsd = float("inf")
+    best_cif = None
+    for fname in sorted(os.listdir(results_path)):
+        if fname.endswith("cif"):
+            cif_path = os.path.join(results_path, fname)
+            with open(cif_path, "rt") as f:
+                gen_cif = f.read()
+
+            true_struct = Structure.from_str(true_cif, fmt="cif")
+            gen_struct = Structure.from_str(gen_cif, fmt="cif")
+            try:
+                is_match = struct_matcher.fit(true_struct, gen_struct)
+                if is_match:
+                    has_match = True
+                    rmsd, _ = struct_matcher.get_rms_dist(true_struct, gen_struct)
+                    if rmsd < best_rmsd:
+                        best_rmsd = rmsd
+                        best_cif = gen_cif
+            except Exception as e:
+                pass
+
+    return has_match, best_cif
+
+
 if __name__ == '__main__':
     model = "cif_model_35"
     model_dir = "../out"
@@ -230,14 +257,17 @@ if __name__ == '__main__':
 
     validity_count = [0, 0]  # [no space group, w/ space group]
     valid_on_first_count = [0, 0]
-    match_true_count_all = [0, 0]
-    match_true_count_unseen = [0, 0]
+    min_match_true_count_all = [0, 0]
+    min_match_true_count_unseen = [0, 0]
+    any_match_true_count_all = [0, 0]
+    any_match_true_count_unseen = [0, 0]
+    n_unseen = 0
 
-    print("Composition         | space group? |  mean E  |  best E  | % valid | valid on first? | matches true? |")
-    print("--------------------|--------------|----------|----------|---------|-----------------|---------------|")
+    print("Composition         | space group? |  mean E  |  min E   | % valid | valid on first? | min matches true? | any matches true? |")
+    print("--------------------|--------------|----------|----------|---------|-----------------|-------------------|-------------------|")
 
-    header = ["formula", "seen_in_trainig", "true_E", "includes_space_group",
-              "mean_E", "min_E", "pct_valid", "valid_on_first", "matches_true"]
+    header = ["formula", "seen_in_training", "true_E", "includes_space_group",
+              "mean_E", "min_E", "pct_valid", "valid_on_first", "min_matches_true", "any_matches_true"]
     rows = []
 
     for formula in sorted(challenge_set):
@@ -246,16 +276,27 @@ if __name__ == '__main__':
 
         true_cif = challenge_set[formula]
         alignn_E = alignn_energies[formula]
+        if formula not in training_set_formulas:
+            n_unseen += 1
+            seen = ""
+        else:
+            seen = "* "
 
         write_cif_and_envs(out_dir, formula, true_cif, "true",
                            distance_cutoff, angle_cutoff, max_dist_factor)
 
-        validity_rate, min_E, mean_E, best_cif = read_props(os.path.join(model_dir, f"{model}_challenge"), formula)
-        valid_on_first = "yes" if is_valid_on_first(os.path.join(model_dir, f"{model}_challenge", formula)) else "no"
-        is_match = "yes" if matches_true(true_cif, best_cif, struct_matcher) else "no"
-        seen = "* " if formula in training_set_formulas else ""
+        challenge_path = os.path.join(model_dir, f"{model}_challenge")
+        validity_rate, min_E, mean_E, min_cif = read_props(challenge_path, formula)
+        valid_on_first = "yes" if is_valid_on_first(os.path.join(challenge_path, formula)) else "no"
+        min_is_match = "yes" if matches_true(true_cif, min_cif, struct_matcher) else "no"
+        any_matches, best_cif = get_best_match(true_cif, challenge_path, formula, struct_matcher)
+        any_matches = "yes" if any_matches else "no"
         print(f"{seen + formula:20}|      no      | {mean_E:8.5f} | {min_E:8.5f} | "
-              f"{validity_rate:7.2f} | {valid_on_first:15} | {is_match:13} |")
+              f"{validity_rate:7.2f} | {valid_on_first:15} | {min_is_match:17} | {any_matches:17} |")
+
+        if min_cif:
+            write_cif_and_envs(out_dir, formula, min_cif, "min_gen_no_spacegroup",
+                               distance_cutoff, angle_cutoff, max_dist_factor)
 
         if best_cif:
             write_cif_and_envs(out_dir, formula, best_cif, "best_gen_no_spacegroup",
@@ -270,23 +311,35 @@ if __name__ == '__main__':
             f"{min_E:.5f}",
             f"{validity_rate:.2f}",
             valid_on_first,
-            is_match,
+            min_is_match,
+            any_matches,
         ])
 
         if validity_rate > 0:
             validity_count[0] += 1
         if valid_on_first == "yes":
             valid_on_first_count[0] += 1
-        if is_match == "yes":
-            match_true_count_all[0] += 1
+        if min_is_match == "yes":
+            min_match_true_count_all[0] += 1
             if not seen.startswith("*"):
-                match_true_count_unseen[0] += 1
+                min_match_true_count_unseen[0] += 1
+        if any_matches == "yes":
+            any_match_true_count_all[0] += 1
+            if not seen.startswith("*"):
+                any_match_true_count_unseen[0] += 1
 
-        validity_rate, min_E, mean_E, best_cif = read_props(os.path.join(model_dir, f"{model}_challenge_sg"), formula)
-        valid_on_first = "yes" if is_valid_on_first(os.path.join(model_dir, f"{model}_challenge_sg", formula)) else "no"
-        is_match = "yes" if matches_true(true_cif, best_cif, struct_matcher) else "no"
+        challenge_path = os.path.join(model_dir, f"{model}_challenge_sg")
+        validity_rate, min_E, mean_E, min_cif = read_props(challenge_path, formula)
+        valid_on_first = "yes" if is_valid_on_first(os.path.join(challenge_path, formula)) else "no"
+        min_is_match = "yes" if matches_true(true_cif, min_cif, struct_matcher) else "no"
+        any_matches, best_cif = get_best_match(true_cif, challenge_path, formula, struct_matcher)
+        any_matches = "yes" if any_matches else "no"
         print(f"ALIGNN E: {alignn_E:8.5f}  |      yes     | {mean_E:8.5f} | {min_E:8.5f} | "
-              f"{validity_rate:7.2f} | {valid_on_first:15} | {is_match:13} |")
+              f"{validity_rate:7.2f} | {valid_on_first:15} | {min_is_match:17} | {any_matches:17} |")
+
+        if min_cif:
+            write_cif_and_envs(out_dir, formula, min_cif, "min_gen_with_spacegroup",
+                               distance_cutoff, angle_cutoff, max_dist_factor)
 
         if best_cif:
             write_cif_and_envs(out_dir, formula, best_cif, "best_gen_with_spacegroup",
@@ -301,29 +354,36 @@ if __name__ == '__main__':
             f"{min_E:.5f}",
             f"{validity_rate:.2f}",
             valid_on_first,
-            is_match,
+            min_is_match,
+            any_matches,
         ])
 
         if validity_rate > 0:
             validity_count[1] += 1
         if valid_on_first == "yes":
             valid_on_first_count[1] += 1
-        if is_match == "yes":
-            match_true_count_all[1] += 1
+        if min_is_match == "yes":
+            min_match_true_count_all[1] += 1
             if not seen.startswith("*"):
-                match_true_count_unseen[1] += 1
+                min_match_true_count_unseen[1] += 1
+        if any_matches == "yes":
+            any_match_true_count_all[1] += 1
+            if not seen.startswith("*"):
+                any_match_true_count_unseen[1] += 1
 
-        print("--------------------|--------------|----------|----------|---------|-----------------|---------------|")
+        print("--------------------|--------------|----------|----------|---------|-----------------|-------------------|-------------------|")
 
     print("* seen in training")
 
     tot = len(challenge_set)
-    print( "                      | no sg | w/ sg |")
-    print( "----------------------|-------|-------|")
-    print(f"Can generate          | {validity_count[0]}/{tot} | {validity_count[1]}/{tot} |")
-    print(f"Valid on first        | {valid_on_first_count[0]}/{tot} | {valid_on_first_count[1]}/{tot} |")
-    print(f"Matches true (all)    | {match_true_count_all[0]}/{tot} | {match_true_count_all[1]}/{tot} |")
-    print(f"Matches true (unseen) | {match_true_count_unseen[0]}/{tot} | {match_true_count_unseen[1]}/{tot} |")
+    print( "                          | no sg | w/ sg |")
+    print( "--------------------------|-------|-------|")
+    print(f"Can generate              | {validity_count[0]}/{tot} | {validity_count[1]}/{tot} |")
+    print(f"Valid on first            | {valid_on_first_count[0]}/{tot} | {valid_on_first_count[1]}/{tot} |")
+    print(f"Min matches true (all)    | {min_match_true_count_all[0]}/{tot} | {min_match_true_count_all[1]}/{tot} |")
+    print(f"Min matches true (unseen) | {min_match_true_count_unseen[0]}/{n_unseen} | {min_match_true_count_unseen[1]}/{n_unseen} |")
+    print(f"Any matches true (all)    | {any_match_true_count_all[0]}/{tot} | {any_match_true_count_all[1]}/{tot} |")
+    print(f"Any matches true (unseen) | {any_match_true_count_unseen[0]}/{n_unseen} | {any_match_true_count_unseen[1]}/{n_unseen} |")
 
     with open(os.path.join(out_dir, "results.csv"), "wt") as f:
         writer = csv.writer(f)
