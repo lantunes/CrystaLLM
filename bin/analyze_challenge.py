@@ -232,11 +232,11 @@ def get_best_match(true_cif, challenge_path, formula, struct_matcher):
 
 
 if __name__ == '__main__':
-    model = "cif_model_35"
+    model = "cif_model_35"  # `{model_dir}/{model}_challenge/` and `{model_dir}/{model}_challenge_sg/` must exist
     model_dir = "../out"
     challenge_set_path = "../out/ChallengeSet-v1.zip"
     alignn_energies = read_alignn_energies("../out/ChallengeSet-v1.alignn_energies.csv")
-    out_dir = "../out/cif_model_35_ChallengeSet-v1_analysis/"
+    out_dir = f"../out/{model}_ChallengeSet-v1_analysis/"
     # local environment analysis
     distance_cutoff = 1.
     angle_cutoff = 0.3
