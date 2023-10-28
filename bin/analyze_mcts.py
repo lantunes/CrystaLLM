@@ -15,9 +15,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def get_formulas(model, model_dir, sg):
+def get_formulas(model, model_dir, mcts_name, sg):
     formulas = []
-    mcts_path = os.path.join(model_dir, f"{model}_mcts{'_sg' if sg else ''}")
+    mcts_path = os.path.join(model_dir, f"{model}_{mcts_name}{'_sg' if sg else ''}")
     items = os.listdir(mcts_path)
     for item in items:
         if not os.path.isfile(os.path.join(mcts_path, item)):
@@ -181,19 +181,20 @@ def write_cif_and_envs(root_dir, formula, cif, name, distance_cutoff, angle_cuto
 
 
 if __name__ == '__main__':
-    model = "cif_model_35"  # `{model_dir}/{model}_random/` and `{model_dir}/{model}_mcts/` must exist
+    model = "cif_model_35"  # `{model_dir}/{model}_random/` and `{model_dir}/{model}_{mcts_name}/` must exist
     model_dir = "../out"
     challenge_set_path = "../out/ChallengeSet-v1.zip"
     alignn_energies = read_alignn_energies("../out/ChallengeSet-v1.alignn_energies.csv")
     n_sims = 1000
-    sg = False  # if True, `{model_dir}/{model}_random_sg/` and `{model_dir}/{model}_mcts_sg/` must exist
-    out_dir = f"../out/{model}_ChallengeSet-v1_mcts{'_sg' if sg else ''}_analysis/"
+    mcts_name = "mcts"
+    sg = False  # if True, `{model_dir}/{model}_random_sg/` and `{model_dir}/{model}_{mcts_name}_sg/` must exist
+    out_dir = f"../out/{model}_ChallengeSet-v1_{mcts_name}{'_sg' if sg else ''}_analysis/"
     # local environment analysis
     distance_cutoff = 1.
     angle_cutoff = 0.3
     max_dist_factor = 1.5
 
-    formulas = get_formulas(model, model_dir, sg)
+    formulas = get_formulas(model, model_dir, mcts_name, sg)
     challenge_set = read_challenge_set(challenge_set_path)
 
     struct_matcher = StructureMatcher(
@@ -233,7 +234,7 @@ if __name__ == '__main__':
                            distance_cutoff, angle_cutoff, max_dist_factor)
 
         random_path = os.path.join(model_dir, f"{model}_random{'_sg' if sg else ''}")
-        mcts_path = os.path.join(model_dir, f"{model}_mcts{'_sg' if sg else ''}")
+        mcts_path = os.path.join(model_dir, f"{model}_{mcts_name}{'_sg' if sg else ''}")
 
         df_random = pd.read_csv(os.path.join(random_path, formula, "results.csv"))
         df_mcts = pd.read_csv(os.path.join(mcts_path, formula, "results.csv"))

@@ -248,6 +248,9 @@ if __name__ == '__main__':
             start = challenge_set[formula]["prompt"]
 
         formula_dir = os.path.join(out_dir, formula)
+        if os.path.exists(formula_dir):
+            print(f"directory exists: {formula_dir}; skipping...")
+            continue
         os.makedirs(formula_dir)
 
         evaluator = MCTSEvaluator(
