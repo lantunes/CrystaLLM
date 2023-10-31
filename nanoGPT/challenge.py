@@ -56,6 +56,8 @@ def read_challenge_set(challenge_set_path):
         components = zipfile.filename.split("/")
         if len(components) < 3 or len(components[-1]) == 0:
             continue
+        if components[0] == "__MACOSX":
+            continue
         formula = components[1]
         if formula not in challenge_set:
             challenge_set[formula] = {}
@@ -136,6 +138,21 @@ def perform_mcts_sampling(
     )
 
     sampler.search(start, num_gens, stepwise=False, n_rollouts=n_rollouts)
+
+
+def update_results(formula, results_csv_path, results):
+    if not os.path.exists(results_csv_path):
+        print(f"WARNING: no results.csv file found at {results_csv_path}")
+        results.append([formula, 0, float("nan"), float("nan")])
+    else:
+        # read results .csv
+        df_results = pd.read_csv(results_csv_path)
+        min_E = df_results["score"].min()
+        mean_E = df_results["score"].mean()
+        pct_valid = (len(df_results) / num_gens) * 100
+        results.append([
+            formula, pct_valid, mean_E, min_E
+        ])
 
 
 if __name__ == '__main__':
@@ -248,8 +265,11 @@ if __name__ == '__main__':
             start = challenge_set[formula]["prompt"]
 
         formula_dir = os.path.join(out_dir, formula)
+        results_csv_path = os.path.join(formula_dir, "results.csv")
+
         if os.path.exists(formula_dir):
             print(f"directory exists: {formula_dir}; skipping...")
+            update_results(formula, results_csv_path, results)
             continue
         os.makedirs(formula_dir)
 
@@ -294,20 +314,7 @@ if __name__ == '__main__':
                 newline_id,
             )
 
-        # read results .csv
-        results_csv_path = os.path.join(formula_dir, "results.csv")
-        if not os.path.exists(results_csv_path):
-            print(f"WARNING: no results.csv file found at {results_csv_path}")
-            results.append([formula, 0, float("nan"), float("nan")])
-            continue
-
-        df_results = pd.read_csv(results_csv_path)
-        min_E = df_results["score"].min()
-        mean_E = df_results["score"].mean()
-        pct_valid = (len(df_results) / num_gens) * 100
-        results.append([
-            formula, pct_valid, mean_E, min_E
-        ])
+        update_results(formula, results_csv_path, results)
 
     with open(os.path.join(out_dir, "results.csv"), "wt") as f:
         writer = csv.writer(f)
