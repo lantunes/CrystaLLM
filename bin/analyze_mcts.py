@@ -104,6 +104,8 @@ def get_best_match(true_cif, challenge_path, formula, struct_matcher):
 
 
 def get_metrics(df, n_sims):
+    if df is None:
+        return float("nan"), float("nan"), float("nan"), float("nan"), None
     min_score_iter = df[df['score'] == df['score'].min()]['iteration'].values[0]
     min_score = df['score'].min()
     mean_score = df['score'].mean()
@@ -180,14 +182,22 @@ def write_cif_and_envs(root_dir, formula, cif, name, distance_cutoff, angle_cuto
     write_file(root_dir, formula, environments, f"{name}_envs.txt")
 
 
+def read_csv(model_path, formula):
+    csv_path = os.path.join(model_path, formula, "results.csv")
+    if os.path.exists(csv_path):
+        return pd.read_csv(csv_path)
+    return None
+
+
 if __name__ == '__main__':
-    model = "cif_model_35"  # `{model_dir}/{model}_random/` and `{model_dir}/{model}_{mcts_name}/` must exist
+    model = "cif_model_35"  # `{model_dir}/{model}_{random_name}/` and `{model_dir}/{model}_{mcts_name}/` must exist
     model_dir = "../out"
     challenge_set_path = "../out/ChallengeSet-v1.zip"
     alignn_energies = read_alignn_energies("../out/ChallengeSet-v1.alignn_energies.csv")
     n_sims = 1000
     mcts_name = "mcts"
-    sg = False  # if True, `{model_dir}/{model}_random_sg/` and `{model_dir}/{model}_{mcts_name}_sg/` must exist
+    random_name = "random"
+    sg = False  # if True, `{model_dir}/{model}_{random_name}_sg/` and `{model_dir}/{model}_{mcts_name}_sg/` must exist
     out_dir = f"../out/{model}_ChallengeSet-v1_{mcts_name}{'_sg' if sg else ''}_analysis/"
     # local environment analysis
     distance_cutoff = 1.
@@ -233,14 +243,14 @@ if __name__ == '__main__':
         write_cif_and_envs(out_dir, formula, true_cif, "true",
                            distance_cutoff, angle_cutoff, max_dist_factor)
 
-        random_path = os.path.join(model_dir, f"{model}_random{'_sg' if sg else ''}")
+        random_path = os.path.join(model_dir, f"{model}_{random_name}{'_sg' if sg else ''}")
         mcts_path = os.path.join(model_dir, f"{model}_{mcts_name}{'_sg' if sg else ''}")
 
-        df_random = pd.read_csv(os.path.join(random_path, formula, "results.csv"))
-        df_mcts = pd.read_csv(os.path.join(mcts_path, formula, "results.csv"))
+        df_random = read_csv(random_path, formula)
+        df_mcts = read_csv(mcts_path, formula)
 
         rand_min_score, best_it, rand_mean_score, rand_pct_valid, min_score_file = get_metrics(df_random, n_sims)
-        min_cif = read_cif(random_path, formula, min_score_file)
+        min_cif = read_cif(random_path, formula, min_score_file) if min_score_file else None
         min_is_match = "yes" if matches_true(true_cif, min_cif, struct_matcher) else "no"
         any_matches, best_cif = get_best_match(true_cif, random_path, formula, struct_matcher)
         any_matches = "yes" if any_matches else "no"
@@ -262,7 +272,7 @@ if __name__ == '__main__':
             random_any_match_true_count += 1
 
         mcts_min_score, best_it, mcts_mean_score, mcts_pct_valid, min_score_file = get_metrics(df_mcts, n_sims)
-        min_cif = read_cif(mcts_path, formula, min_score_file)
+        min_cif = read_cif(mcts_path, formula, min_score_file) if min_score_file else None
         min_is_match = "yes" if matches_true(true_cif, min_cif, struct_matcher) else "no"
         any_matches, best_cif = get_best_match(true_cif, mcts_path, formula, struct_matcher)
         any_matches = "yes" if any_matches else "no"
