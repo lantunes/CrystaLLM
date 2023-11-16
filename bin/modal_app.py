@@ -41,7 +41,7 @@ stub = Stub(
     ],
     gpu="T4",
     container_idle_timeout=60,
-    timeout=60,
+    timeout=90,
 )
 class CrystaLLMModel:
     def __enter__(self):
