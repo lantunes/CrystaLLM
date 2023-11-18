@@ -1355,13 +1355,13 @@ files = [
 
 [[package]]
 name = "modal"
-version = "0.52.3377"
+version = "0.55.4094"
 description = "Python client library for Modal"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "modal-0.52.3377-py3-none-any.whl", hash = "sha256:dad6ed14ada9962e20bdfe3e2a9d67eff63c8ca44ac6f6962cfbc0d985ab2c83"},
+    {file = "modal-0.55.4094-py3-none-any.whl", hash = "sha256:9e43bb2266c5b2774a55aac4a187cfc3846587e7f485c2ceb66bacdb8e9d628e"},
 ]
 
 [package.dependencies]
@@ -3531,4 +3531,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "f4a5f2d569a707bf978c6c570c66d5695227e836f591a003f64e3849d52aefac"
+content-hash = "1a6f7f533d74c94ba6d38b352dada91bd58791cde32a0511e6292a7423bb6718"

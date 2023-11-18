@@ -21,7 +21,7 @@ matplotlib-venn = "^0.11.9"
 torchserve = "^0.8.0"
 torch-model-archiver = "^0.8.0"
 beam-sdk = "^0.13.0"
-modal = "0.52.3377"
+modal = "0.55.4094"
 pyzmq = "^25.1.1"
 
 [build-system]
