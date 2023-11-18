@@ -26,6 +26,7 @@ if __name__ == '__main__':
 
     m, b = np.polyfit(x, y, 1)
     ax.plot(x, m * x + b, color='red')
+    ax.grid(alpha=0.15)
 
     r2 = r2_score(y, x)
     mae = mean_absolute_error(y, x)

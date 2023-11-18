@@ -9,7 +9,7 @@ import multiprocessing as mp
 import signal
 from lib import is_atom_site_multiplicity_consistent, is_space_group_consistent, extract_space_group_symbol, \
     extract_data_formula, replace_symmetry_operators, bond_length_reasonableness_score, is_formula_consistent, \
-    get_cif_tokenizer, extract_numeric_property, get_unit_cell_volume
+    get_cif_tokenizer, extract_numeric_property, get_unit_cell_volume, extract_volume
 
 try:
     import cPickle as pickle
@@ -75,7 +75,9 @@ def eval_cif(progress_queue, task_queue, result_queue):
             alpha = extract_numeric_property(cif, "_cell_angle_alpha")
             beta = extract_numeric_property(cif, "_cell_angle_beta")
             gamma = extract_numeric_property(cif, "_cell_angle_gamma")
-            get_unit_cell_volume(a, b, c, alpha, beta, gamma)
+            implied_vol = get_unit_cell_volume(a, b, c, alpha, beta, gamma)
+
+            gen_vol = extract_volume(cif)
 
             gen_len = len(tokenizer.tokenize_cif(cif))
 
@@ -88,7 +90,7 @@ def eval_cif(progress_queue, task_queue, result_queue):
 
             valid = is_valid(cif, bond_length_acceptability_cutoff=1.0)
 
-            is_valid_and_len.append((data_formula, space_group_symbol, valid, gen_len))
+            is_valid_and_len.append((data_formula, space_group_symbol, valid, gen_len, implied_vol, gen_vol))
 
             signal.alarm(0)  # cancel the alarm
 
@@ -150,8 +152,10 @@ if __name__ == '__main__':
         "sg": [],
         "is_valid": [],
         "gen_len": [],
+        "implied_vol": [],
+        "gen_vol": [],
     }
-    for comp, sg, valid, gen_len in is_valid_and_lens:
+    for comp, sg, valid, gen_len, implied_vol, gen_vol in is_valid_and_lens:
         if valid:
             n_valid += 1
             valid_gen_lens.append(gen_len)
@@ -159,6 +163,8 @@ if __name__ == '__main__':
         results_data["sg"].append(sg)
         results_data["is_valid"].append(valid)
         results_data["gen_len"].append(gen_len)
+        results_data["implied_vol"].append(implied_vol)
+        results_data["gen_vol"].append(gen_vol)
 
     print(f"num valid: {n_valid} / {n} ({n_valid/n:.2f})")
     print(f"longest valid generated length: {np.max(valid_gen_lens):,}")
