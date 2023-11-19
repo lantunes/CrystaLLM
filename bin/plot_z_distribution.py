@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore")
 if __name__ == '__main__':
 
     cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.pkl.gz"
+    out_fname = "../out/z_dist.pdf"
 
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
@@ -41,4 +42,6 @@ if __name__ == '__main__':
     plt.xticks(ticks=X, labels=["1", "2", "3", "4", "5", "6", "7", "8", ">8"])
     plt.xlabel("Z (formula units)")
     plt.ylabel("CIF count")
+
+    plt.savefig(out_fname)
     plt.show()

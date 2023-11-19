@@ -6,7 +6,8 @@ import numpy as np
 
 if __name__ == '__main__':
 
-    embeddings = atom_vectors_from_csv("../out/cif_model_24c.number_vectors.csv")
+    embeddings = atom_vectors_from_csv("../out/cif_model_35.number_vectors.csv")
+    out_fname = "../out/digit_vectors.pdf"
 
     labels = []
     X = []
@@ -27,5 +28,6 @@ if __name__ == '__main__':
         ax.annotate(labels[i], (res[0], res[1]), ha="center", va="center", color="w")
     ax.set_xlabel(f"PC1 ({pc1_var*100:.2f}%)")
     ax.set_ylabel(f"PC2 ({pc2_var*100:.2f}%)")
-    plt.title("Learned Digit Embeddings Projected onto PC1 and PC2")
+
+    plt.savefig(out_fname)
     plt.show()

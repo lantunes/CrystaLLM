@@ -33,11 +33,11 @@ def color_by_label(label):
 
 if __name__ == '__main__':
 
-    plot_technique = "pca"
-    # plot_technique = "tsne"
+    # plot_technique = "pca"
+    plot_technique = "tsne"
 
-    # embeddings = atom_vectors_from_csv("../out/cif_model_24.atom_vectors.csv")
-    embeddings = atom_vectors_from_csv("../out/cif_model_24c.atom_vectors.csv")
+    embeddings = atom_vectors_from_csv("../out/cif_model_35.atom_vectors.csv")
+    out_fname = "../out/atom_embeddings.pdf"
 
     color_map = []
     labels = []
@@ -62,6 +62,8 @@ if __name__ == '__main__':
     if plot_technique == "pca":
         print(technique.explained_variance_ratio_)
 
+    plt.rcParams["figure.figsize"] = (12, 7)
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.scatter(result[:, 0], result[:, 1], c=color_map, s=[190]*len(X))
@@ -69,4 +71,6 @@ if __name__ == '__main__':
         ax.annotate(labels[i], (res[0], res[1]), ha="center", va="center", color=label_colors[i])
     ax.set_xlabel("Dimension 1")
     ax.set_ylabel("Dimension 2")
+
+    plt.savefig(out_fname)
     plt.show()

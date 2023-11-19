@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore")
 if __name__ == '__main__':
 
     cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.pkl.gz"
+    out_fname = "../out/spacegroup_dist.pdf"
 
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
@@ -27,6 +28,8 @@ if __name__ == '__main__':
         print(f"sg: {i}, count: {count}")
         most_common.append((i, count))
 
+    plt.rcParams["figure.figsize"] = (15, 5)
+
     plt.bar(list(range(1, 231)), sg_to_cif_count)
     plt.title("Occurrence Counts of Space Groups in the Dataset")
     plt.xticks(list(range(1, 231, 10)))
@@ -34,4 +37,6 @@ if __name__ == '__main__':
     plt.ylabel("CIF count")
     t = "\n".join([f"space group: {sg}, count: {c:,}" for sg, c in most_common][0:3])
     plt.text(0.1, 0.8, "most common:\n" + t, transform=plt.gca().transAxes)
+
+    plt.savefig(out_fname)
     plt.show()

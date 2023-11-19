@@ -1,36 +1,46 @@
 from lib import atom_vectors_from_csv
-import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.pylab as pl
+import numpy as np
+
+
+def cosine_similarity(num_i_repr, num_j_repr):
+    return np.dot(num_i_repr, num_j_repr) / (np.linalg.norm(num_i_repr) * np.linalg.norm(num_j_repr))
+
+
+def euclidean_distance(num_i_repr, num_j_repr):
+    return np.linalg.norm(np.array(num_i_repr) - np.array(num_j_repr))
 
 
 if __name__ == '__main__':
-    embeddings = atom_vectors_from_csv("../out/cif_model_24c.number_vectors.csv")
-    title = "cif_model_24c number vector similarities"
 
-    elements = list(range(10))
+    embeddings = atom_vectors_from_csv("../out/cif_model_35.number_vectors.csv")
+    # sim_type, out_fname = "Cosine", "../out/digit_vectors_similarities_cosine.pdf"
+    sim_type, out_fname = "Euclidean", "../out/digit_vectors_similarities_euclid.pdf"
 
-    similarity_matrix = [[0. for _ in range(len(elements))] for _ in range(len(elements))]
+    colors = pl.cm.tab10(np.linspace(0, 1, 10))
 
-    for i, elem_i in enumerate(elements):
-        for j, elem_j in enumerate(elements):
-            num_i_repr = embeddings[elem_i]
-            num_j_repr = embeddings[elem_j]
+    for digit1 in list(range(10)):
+        vec1 = embeddings[digit1]
+        X = []
+        Y = []
+        for digit2, vec2 in embeddings.items():
+            X.append(digit2)
+            if sim_type == "Euclidean":
+                Y.append(euclidean_distance(vec1, vec2))
+            elif sim_type == "Cosine":
+                Y.append(cosine_similarity(vec1, vec2))
+            else:
+                raise Exception(f"unsupported similarity type: {sim_type}")
 
-            # cosine similarity
-            similarity = np.dot(num_i_repr, num_j_repr) / (np.linalg.norm(num_i_repr) * np.linalg.norm(num_j_repr))
+        alpha = 1 if digit1 == 5 else 0.3
+        plt.plot(X, Y, label=digit1, alpha=alpha, color=colors[digit1])
 
-            # euclidean distance
-            # similarity = np.linalg.norm(np.array(num_i_repr) - np.array(num_j_repr))
+    plt.xticks(list(range(10)))
+    plt.xlabel("Digit")
+    plt.ylabel(f"{sim_type} distance")
+    plt.title(f"{sim_type} distances between each digit")
+    plt.legend()
 
-            similarity_matrix[i][j] = similarity
-
-    plt.imshow(similarity_matrix, cmap='Blues_r')
-    plt.title(title)
-    plt.yticks(ticks=list(range(len(similarity_matrix))), labels=elements, fontsize=7)
-    plt.gca().xaxis.tick_top()
-    plt.xticks(ticks=list(range(len(similarity_matrix))), labels=elements, fontsize=7)
-    [l.set_visible(False) for (i, l) in enumerate(plt.gca().xaxis.get_ticklabels()) if i % 3 != 0]
-    [l.set_visible(False) for (i, l) in enumerate(plt.gca().yaxis.get_ticklabels()) if i % 3 != 0]
-    plt.colorbar()
-    plt.clim(-1, 1)
+    plt.savefig(out_fname)
     plt.show()

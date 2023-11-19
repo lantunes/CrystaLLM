@@ -5,11 +5,8 @@ from pymatgen.core import Element
 
 
 if __name__ == '__main__':
-    embeddings = atom_vectors_from_csv("../out/cif_model_24.atom_vectors.csv")
-    title = "cif_model_24 atom vector similarities"
-
-    # embeddings = atom_vectors_from_csv("../out/cif_model_24c.atom_vectors.csv")
-    # title = "cif_model_24c atom vector similarities"
+    embeddings = atom_vectors_from_csv("../out/cif_model_35.atom_vectors.csv")
+    out_fname = "../out/atom_vector_similarities.pdf"
 
     elements = sorted([Element(atom) for atom in embeddings], key=lambda e: (e.group, e.row))
 
@@ -28,8 +25,9 @@ if __name__ == '__main__':
 
             similarity_matrix[i][j] = similarity
 
+    plt.rcParams["figure.figsize"] = (8, 8)
+
     plt.imshow(similarity_matrix, cmap='Blues_r')
-    plt.title(title)
     plt.yticks(ticks=list(range(len(similarity_matrix))), labels=[e.name for e in elements], fontsize=7)
     plt.gca().xaxis.tick_top()
     plt.xticks(ticks=list(range(len(similarity_matrix))), labels=[e.name for e in elements], fontsize=7)
@@ -37,4 +35,6 @@ if __name__ == '__main__':
     [l.set_visible(False) for (i, l) in enumerate(plt.gca().yaxis.get_ticklabels()) if i % 3 != 0]
     plt.colorbar()
     plt.clim(-1, 1)
+
+    plt.savefig(out_fname)
     plt.show()

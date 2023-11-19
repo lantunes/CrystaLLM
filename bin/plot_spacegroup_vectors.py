@@ -101,7 +101,8 @@ def color_by_label(label):
 
 if __name__ == "__main__":
 
-    embeddings = atom_vectors_from_csv("../out/cif_model_24c.spacegroup_vectors.csv")
+    embeddings = atom_vectors_from_csv("../out/cif_model_35.spacegroup_vectors.csv")
+    out_fname = "../out/spacegroup_vectors.pdf"
 
     color_map = []
     labels = []
@@ -118,6 +119,8 @@ if __name__ == "__main__":
 
     technique = TSNE(n_components=2, verbose=1, perplexity=50, n_iter=500, learning_rate=10, metric="cosine")
     result = technique.fit_transform(X)
+
+    plt.rcParams["figure.figsize"] = (13, 9)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -138,4 +141,5 @@ if __name__ == "__main__":
     ]
     ax.legend(handles=legend_elements, loc="upper left", prop={"size": 8})
 
+    plt.savefig(out_fname)
     plt.show()
