@@ -15,15 +15,18 @@ if __name__ == '__main__':
 
     r2 = r2_score(df[true_col], df[gen_col])
     mae = mean_absolute_error(df[true_col], df[gen_col])
-    text = f"$R^2$: {r2:.3f}\nMAE: {mae:.3f}"
+    text = f"$R^2$: {r2:.3f}\nMAE: {mae:.3f} Å"
     text_coords = (0.05, 0.90)
 
     fig, ax = plt.subplots(1, 1)
 
     plot_true_vs_predicted(ax, true_y=df[true_col], predicted_y=df[gen_col],
-                           metrics=False, alpha=1.,
+                           metrics=False, alpha=1., size=20.,
                            xlabel="True Cell Length (Å)", ylabel="Generated Cell Length (Å)",
                            text=text, text_coords=text_coords, rasterize=True, show_grid=False)
 
-    plt.savefig(out_fname)
+    ax.text(-0.135, 1.0, "a", transform=ax.transAxes, ha="center", va="center", rotation="horizontal",
+            fontsize=23, fontweight="bold", fontname="Arial")
+
+    plt.savefig(out_fname, dpi=500)
     plt.show()
