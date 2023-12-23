@@ -73,9 +73,10 @@ This command reads the `pyproject.toml` file, and installs all the dependencies 
 
 ### Downloading the Original CIF Files
 
-The pre-assembled collection of CIF files which have been downloaded from the Materials Project (MP), the OQMD, and 
-NOMAD are contained in the `cifs_v1_orig.pkl.gz` file. To download this file, execute the following command from the 
-root of the cloned project:
+The pre-assembled collection of CIF files which have been downloaded from the 
+[Materials Project (MP)](materialsproject.org), the [OQMD](https://oqmd.org/), and 
+[NOMAD](https://nomad-lab.eu/nomad-lab/) are contained in the `cifs_v1_orig.pkl.gz` file. To download this file, 
+execute the following command from the root of the cloned project:
 
 ```shell
 $ python bin/fetch_data.py cifs_v1_orig.pkl.gz
@@ -84,6 +85,22 @@ This file contains a serialized Python list of 3,551,492 CIF strings, each as a 
 every ID is unique.
 
 _NOTE: This file is over 600 MB in size._
+
+_This file includes data from the [Materials Project](https://materialsproject.org/)._ 
+> A. Jain*, S.P. Ong*, G. Hautier, W. Chen, W.D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, K.A. 
+Persson (*=equal contributions). The Materials Project: A materials genome approach to accelerating materials 
+innovation. APL Materials, 2013, 1(1), 011002.
+
+_This file includes data from the [OQMD database](http://oqmd.org/)._
+>  J. E. Saal, S. Kirklin, M. Aykol, B. Meredig, and C. Wolverton. Materials Design and Discovery with 
+High-Throughput Density Functional Theory: The Open Quantum Materials Database (OQMD). JOM 65, 1501-1509 (2013).
+
+_This file includes data from [NOMAD](https://nomad-lab.eu/nomad-lab/)._
+> M. Scheidgen, L. Himanen, A. Ladines, D. Sikter, M. Nakhaee, Á. Fekete, T. Chang, A. Golparvar, J. Márquez, 
+S. Brockhauser, S. Brückner, L. Ghiringhelli, F. Dietrich, D. Lehmberg, T. Denell, A. Albino 1, H. Näsström, S. Shabih, 
+F. Dobener, M. Kühbach, R. Mozumder, J. Rudzinski, N. Daelman, J. Pizarro, M. Kuban, C. Salazar, P. Ondračka, 
+H.-J. Bungartz, C. Draxl. NOMAD: A distributed web-based platform for managing materials science research data. Journal 
+of Open Source Software, 8(90), 5388.
 
 ### Deduplicating the Original CIF Files
 
