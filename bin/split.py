@@ -1,17 +1,41 @@
 import gzip
 import pickle
+import argparse
 from sklearn.model_selection import train_test_split
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Split CIF data into train, validation, and test sets.")
+    parser.add_argument("--cifs_fname", type=str, required=True,
+                        help="Path to the file with the CIFs to be split. It is expected that "
+                             "the file contains the gzipped contents of a pickled Python list of CIF strings.")
+    parser.add_argument("--train_fname", type=str, required=True,
+                        help="Path to the file where the training set CIFs will be stored. "
+                             "The file will contain the gzipped contents of a pickle dump. It is "
+                             "recommended that the filename end in `.pkl.gz`.")
+    parser.add_argument("--val_fname", type=str, required=True,
+                        help="Path to the file where the validation set CIFs will be stored. "
+                             "The file will contain the gzipped contents of a pickle dump. It is "
+                             "recommended that the filename end in `.pkl.gz`.")
+    parser.add_argument("--test_fname", type=str, required=True,
+                        help="Path to the file where the test set CIFs will be stored. "
+                             "The file will contain the gzipped contents of a pickle dump. It is "
+                             "recommended that the filename end in `.pkl.gz`.")
+    parser.add_argument("--random_state", type=int, default=20230610,
+                        help="Random state for train-test split.")
+    parser.add_argument("--validation_size", type=float, default=0.10,
+                        help="Size of the validation set as a fraction.")
+    parser.add_argument("--test_size", type=float, default=0.0045,
+                        help="Size of the test set as a fraction.")
+    args = parser.parse_args()
 
-    cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.pkl.gz"
-    train_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.train.pkl.gz"
-    val_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.val.pkl.gz"
-    test_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.test.pkl.gz"
-    random_state = 20230610
-    validation_size = 0.0155
-    test_size = 0.0045
+    cifs_fname = args.cifs_fname
+    train_fname = args.train_fname
+    val_fname = args.val_fname
+    test_fname = args.test_fname
+    random_state = args.random_state
+    validation_size = args.validation_size
+    test_size = args.test_size
 
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)

@@ -18,13 +18,13 @@ warnings.filterwarnings("ignore")
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Deduplicate CIF files.")
     parser.add_argument("name", type=str,
-                        help=f"The path to the file with the CIFs to be deduplicated. It is expected that the file will"
-                             f"contain the gzipped contents of a pickled Python list of tuples, of (id, cif) pairs.")
+                        help="Path to the file with the CIFs to be deduplicated. It is expected that the file "
+                             "contains the gzipped contents of a pickled Python list of tuples, of (id, cif) pairs.")
     parser.add_argument("--out", "-o", action="store",
                         required=True,
-                        help="The path to the file where the deduplicated CIFs will be stored. "
+                        help="Path to the file where the deduplicated CIFs will be stored. "
                              "The file will contain the gzipped contents of a pickle dump. It is "
                              "recommended that the filename end in `.pkl.gz`.")
     args = parser.parse_args()

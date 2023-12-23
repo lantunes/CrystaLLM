@@ -62,14 +62,14 @@ def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Pre-process CIF files.")
     parser.add_argument("name", type=str,
-                        help="The path to the file with the CIFs to be pre-processed. It is expected that the file "
-                             "will contain the gzipped contents of a pickled Python list of tuples, of (id, cif) "
+                        help="Path to the file with the CIFs to be pre-processed. It is expected that the file "
+                             "contains the gzipped contents of a pickled Python list of tuples, of (id, cif) "
                              "pairs.")
     parser.add_argument("--out", "-o", action="store",
                         required=True,
-                        help="The path to the file where the pre-processed CIFs will be stored. "
+                        help="Path to the file where the pre-processed CIFs will be stored. "
                              "The file will contain the gzipped contents of a pickle dump. It is "
                              "recommended that the filename end in `.pkl.gz`.")
     parser.add_argument("--oxi", action="store_true",

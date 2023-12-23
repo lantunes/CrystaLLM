@@ -4,6 +4,7 @@ import os
 import numpy as np
 import random
 import gzip
+import argparse
 import multiprocessing as mp
 from tqdm import tqdm
 try:
@@ -11,7 +12,10 @@ try:
 except ImportError:
     import pickle
 
-from lib import get_cif_tokenizer, array_split
+from lib import (
+    get_cif_tokenizer,
+    array_split,
+)
 
 
 def progress_listener(queue, n):
@@ -49,17 +53,28 @@ def preprocess(cifs_raw):
 
 
 if __name__ == '__main__':
-    # train_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.train.pkl.gz"
-    # val_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.val.pkl.gz"
-    # out_dir = "../out/mp_oqmd_nomad_cifs_semisymm_Z_props"
+    parser = argparse.ArgumentParser(description="Tokenize CIF files.")
+    parser.add_argument("--train_fname", type=str, required=True,
+                        help="Path to the file with the training set CIFs to be tokenized. It is expected that "
+                             "the file contains the gzipped contents of a pickled Python list of CIF strings.")
+    parser.add_argument("--val_fname", type=str, default="",
+                        help="Path to the file with the validation set CIFs to be tokenized. It is expected that "
+                             "the file contains the gzipped contents of a pickled Python list of CIF strings.")
+    parser.add_argument("--out_dir", type=str, required=True,
+                        help="Output directory to store processed files.")
+    parser.add_argument("--workers", type=int, default=4,
+                        help="Number of workers to use for processing.")
+    args = parser.parse_args()
 
-    train_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.pkl.gz"
-    val_fname = ""
-    out_dir = "../out/mp_oqmd_nomad_cifs_semisymm_Z_props_all"
+    # TODO we should tar and gzip the output folder
+
+    train_fname = args.train_fname
+    val_fname = args.val_fname
+    out_dir = args.out_dir
+    workers = args.workers
 
     symmetrized = True
     includes_props = True
-    workers = 4
 
     has_val = len(val_fname) > 0
 
