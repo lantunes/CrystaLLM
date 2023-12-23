@@ -18,9 +18,11 @@ model definition, training, and inference code in this repository is derived fro
   - [Installing Dependencies](#installing-dependencies)
 - [Obtaining the Training Data](#obtaining-the-training-data)
   - [Downloading the Original CIF Files](#downloading-the-original-cif-files)
+  - [Deduplicating the Original CIF Files](#deduplicating-the-original-cif-files)
   - [Pre-processing the Original CIF Files](#pre-processing-the-original-cif-files)
   - [Splitting the Dataset into Train, Validation and Test Sets](#splitting-the-dataset-into-train-validation-and-test-sets)
   - [Tokenizing the Dataset](#tokenizing-the-dataset)
+  - [Identifying CIF Start Indices](#identifying-cif-start-indices)
 - [Training the Model](#training-the-model)
 - [Generating Crystal Structures](#generating-crystal-structures)
   - [Using the Pre-trained Model](#using-the-pre-trained-model)
@@ -72,6 +74,10 @@ TODO
 
 TODO
 
+### Deduplicating the Original CIF Files
+
+TODO
+
 ### Pre-processing the Original CIF Files
 
 TODO
@@ -81,6 +87,10 @@ TODO
 TODO
 
 ### Tokenizing the Dataset
+
+TODO
+
+### Identifying CIF Start Indices
 
 TODO
 
