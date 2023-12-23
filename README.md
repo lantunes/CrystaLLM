@@ -37,12 +37,14 @@ model definition, training, and inference code in this repository is derived fro
 
 ### Prerequisites
 
-This project requires Python 3.9 or greater.
+- This project requires Python 3.9 or greater. 
+
+- This project uses Poetry for dependency management. Install Poetry if it's 
+not installed on your system, by following the instructions [here](https://python-poetry.org/docs/#installation).
 
 ### Creating a Local Environment
 
-To work with the models, clone this repository to your local machine. Then perform the following steps to create and 
-activate a local environment:
+Perform the following steps to create and activate a local environment:
 
 1. Create a Python virtual environment:
 
@@ -58,10 +60,10 @@ $ source crystallm_venv/bin/activate
 
 ### Installing Dependencies
 
-This project uses Poetry for dependency management. Install the required packages by running:
+Clone this repository to your local machine. Then, from the root of the cloned project, install the required packages 
+by running:
 
 ```shell
-$ pip install poetry
 $ poetry install
 ```
 
@@ -69,11 +71,19 @@ This command reads the `pyproject.toml` file, and installs all the dependencies 
 
 ## Obtaining the Training Data
 
-TODO
-
 ### Downloading the Original CIF Files
 
-TODO
+The pre-assembled collection of CIF files which have been downloaded from the Materials Project (MP), the OQMD, and 
+NOMAD are contained in the `cifs_v1_orig.pkl.gz` file. To download this file, execute the following command from the 
+root of the cloned project:
+
+```shell
+$ python bin/fetch_data.py cifs_v1_orig.pkl.gz
+```
+This file contains a serialized Python list of 3,551,492 CIF strings, each as a 2-tuple, `(ID, CIF string)`, where 
+every ID is unique.
+
+_NOTE: This file is over 600 MB in size._
 
 ### Deduplicating the Original CIF Files
 
