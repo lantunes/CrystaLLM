@@ -8,7 +8,7 @@ _[Crystal Structure Generation with Autoregressive Large Language Modeling](http
 model definition, training, and inference code in this repository is derived from the code in the 
 [nanoGPT](https://github.com/karpathy/nanoGPT) repository.
 
-<img src="resources/crystallm-github.png" width="60%"/>
+<img src="resources/crystallm-github.png" width="100%"/>
 
 ## Table of Contents
 
