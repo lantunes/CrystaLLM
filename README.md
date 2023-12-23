@@ -17,6 +17,10 @@ model definition, training, and inference code in this repository is derived fro
   - [Creating a Local Environment](#creating-a-local-environment)
   - [Installing Dependencies](#installing-dependencies)
 - [Obtaining the Training Data](#obtaining-the-training-data)
+  - [Downloading the Original CIF Files](#downloading-the-original-cif-files)
+  - [Pre-processing the Original CIF Files](#pre-processing-the-original-cif-files)
+  - [Splitting the Dataset into Train, Validation and Test Sets](#splitting-the-dataset-into-train-validation-and-test-sets)
+  - [Tokenizing the Dataset](#tokenizing-the-dataset)
 - [Training the Model](#training-the-model)
 - [Generating Crystal Structures](#generating-crystal-structures)
   - [Using the Pre-trained Model](#using-the-pre-trained-model)
@@ -61,6 +65,22 @@ $ poetry install
 This command reads the `pyproject.toml` file, and installs all the dependencies in the virtual environment.
 
 ## Obtaining the Training Data
+
+TODO
+
+### Downloading the Original CIF Files
+
+TODO
+
+### Pre-processing the Original CIF Files
+
+TODO
+
+### Splitting the Dataset into Train, Validation and Test Sets
+
+TODO
+
+### Tokenizing the Dataset
 
 TODO
 
