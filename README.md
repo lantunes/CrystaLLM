@@ -79,7 +79,7 @@ The pre-assembled collection of CIF files which have been downloaded from the
 execute the following command from the root of the cloned project:
 
 ```shell
-$ python bin/fetch_data.py cifs_v1_orig.pkl.gz
+$ python bin/download.py cifs_v1_orig.pkl.gz
 ```
 This file contains a serialized Python list of 3,551,492 CIF strings, each as a 2-tuple, `(ID, CIF string)`, where 
 every ID is unique.
