@@ -1,28 +1,75 @@
 CrystaLLM
 ==============
 
-To activate the venv:
-```
-$ source ../venvs/crystal_gpt_env/bin/activate
+CrystaLLM is a Transformer-based Large Language Model of the CIF (Crystallographic Information File) format. The model 
+can be used to generate crystal structures, and is based on the [GPT-2 model](https://github.com/openai/gpt-2). This 
+repository contains code that can be used to reproduce the experiments in the paper
+_[Crystal Structure Generation with Autoregressive Large Language Modeling](https://arxiv.org/abs/2307.04340)_. The 
+model definition, training, and inference code in this repository is derived from the code in the 
+[nanoGPT](https://github.com/karpathy/nanoGPT) repository.
+
+<img src="resources/crystallm-github.png" width="60%"/>
+
+## Table of Contents
+
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Creating a Local Environment](#creating-a-local-environment)
+  - [Installing Dependencies](#installing-dependencies)
+- [Tests](#tests)
+- [Need Help?](#need-help)
+- [Citation](#citation)
+
+## Getting Started
+
+### Prerequisites
+
+This project requires Python 3.9 or greater.
+
+### Creating a Local Environment
+
+To work with the models, clone this repository to your local machine. The perform the following steps to create and 
+activate a local environment:
+
+1. Create a Python virtual environment:
+
+```shell
+$ python -m venv crystallm_venv
 ```
 
-The `nanoGPT` module contains code lifted from `https://github.com/karpathy/nanoGPT`. 
+2. Activate the virtual environment:
 
-To train a model on a macbook, from the root of this project, do:
 ```shell
-$ python nanoGPT/train.py config/train_cif.py --device=cpu --compile=False
+$ source crystallm_venv/bin/activate
 ```
-alternatively, on a GPU:
-```shell
-$ python nanoGPT/train.py config/train_cif.py --device=cuda
-```
-NOTE: Add `--dtype=float16` if an error occurs because of using `bfloat16`.
 
-To sample from a trained model, from the root of this project, do:
+### Installing Dependencies
+
+This project uses Poetry for dependency management. Install the required packages by running:
+
 ```shell
-$ python nanoGPT/sample.py --device=cpu --out_dir=out/cif_model --start="data_NaCl"
+$ pip install poetry
+$ poetry install
 ```
-alternatively:
-```shell
-$ python nanoGPT/sample.py --device=cpu --out_dir=out/cif_model --start="FILE:out/prompt.txt"
+
+This command reads the `pyproject.toml` file, and installs all the dependencies in the virtual environment.
+
+## Tests
+
+TODO
+
+## Need Help?
+
+If you encounter any issues, or have any questions, please feel free to open an issue in this repository.
+
+## Citation
+
+Please use the following bibtex entry:
+```
+@article{antunes2023crystal,
+  title={Crystal Structure Generation with Autoregressive Large Language Modeling},
+  author={Antunes, Luis M and Butler, Keith T and Grau-Crespo, Ricardo},
+  journal={arXiv preprint arXiv:2307.04340},
+  year={2023}
+}
 ```
