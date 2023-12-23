@@ -1,11 +1,18 @@
 import sys
 sys.path.append(".")
+import argparse
 import gzip
 from tqdm import tqdm
 import multiprocessing as mp
 from queue import Empty
-from lib import semisymmetrize_cif, replace_data_formula_with_nonreduced_formula, add_atomic_props_block, \
-    round_numbers, extract_formula_units
+from lib import (
+    semisymmetrize_cif,
+    replace_data_formula_with_nonreduced_formula,
+    add_atomic_props_block,
+    round_numbers,
+    extract_formula_units,
+)
+
 try:
     import cPickle as pickle
 except ImportError:
@@ -55,11 +62,31 @@ def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
 
 
 if __name__ == '__main__':
-    cifs_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg.pkl.gz"
-    out_fname = "../out/orig_cifs_mp_2022_04_12+oqmd_v1_5+nomad_2023_04_30__comp-sg_augm.pkl.gz"
-    oxi = False  # whether the CIFs to modify contain oxidation state information
-    decimal_places = 4  # the number of decimal places to round the floating point numbers to in the CIF
-    workers = 4
+    parser = argparse.ArgumentParser()
+    parser.add_argument("name", type=str,
+                        help="The path to the file with the CIFs to be pre-processed. It is expected that the file "
+                             "will contain the gzipped contents of a pickled Python list of tuples, of (id, cif) "
+                             "pairs.")
+    parser.add_argument("--out", "-o", action="store",
+                        required=True,
+                        help="The path to the file where the pre-processed CIFs will be stored. "
+                             "The file will contain the gzipped contents of a pickle dump. It is "
+                             "recommended that the filename end in `.pkl.gz`.")
+    parser.add_argument("--oxi", action="store_true",
+                        help="Include this flag if the CIFs to be processed contain oxidation state information.")
+    parser.add_argument("--decimal-places", type=int, default=4,
+                        help="The number of decimal places to round the floating point numbers to in the CIF. "
+                             "Default is 4.")
+    parser.add_argument("--workers", type=int, default=4,
+                        help="The number of workers to use for processing. Default is 4.")
+
+    args = parser.parse_args()
+
+    cifs_fname = args.name
+    out_fname = args.out
+    oxi = args.oxi
+    decimal_places = args.decimal_places
+    workers = args.workers
 
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
