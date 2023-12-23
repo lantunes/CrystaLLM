@@ -23,6 +23,7 @@ model definition, training, and inference code in this repository is derived fro
   - [Splitting the Dataset into Train, Validation and Test Sets](#splitting-the-dataset-into-train-validation-and-test-sets)
   - [Tokenizing the Dataset](#tokenizing-the-dataset)
   - [Identifying CIF Start Indices](#identifying-cif-start-indices)
+  - [Using Your Own CIF Files](#using-your-own-cif-files)
 - [Training the Model](#training-the-model)
 - [Generating Crystal Structures](#generating-crystal-structures)
   - [Using the Pre-trained Model](#using-the-pre-trained-model)
@@ -93,6 +94,10 @@ TODO
 ### Identifying CIF Start Indices
 
 TODO
+
+### Using Your Own CIF Files
+
+TODO - from a user-provided directory of CIFs, script to prepare a .pkl.gz file like the original downloaded CIFs
 
 ## Training the Model
 
