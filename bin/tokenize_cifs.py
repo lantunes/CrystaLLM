@@ -1,5 +1,3 @@
-import sys
-sys.path.append(".")
 import os
 import numpy as np
 import random
@@ -155,16 +153,16 @@ if __name__ == '__main__':
 
     # export to bin files
     train_ids = np.array(train_ids, dtype=np.uint16)
-    train_ids.tofile(os.path.join(out_dir, 'train.bin'))
+    train_ids.tofile(os.path.join(out_dir, "train.bin"))
     if has_val:
         val_ids = np.array(val_ids, dtype=np.uint16)
-        val_ids.tofile(os.path.join(out_dir, 'val.bin'))
+        val_ids.tofile(os.path.join(out_dir, "val.bin"))
 
     # save the meta information as well, to help us encode/decode later
     meta = {
-        'vocab_size': len(tokenizer.token_to_id),
-        'itos': tokenizer.id_to_token,
-        'stoi': tokenizer.token_to_id,
+        "vocab_size": len(tokenizer.token_to_id),
+        "itos": tokenizer.id_to_token,
+        "stoi": tokenizer.token_to_id,
     }
-    with open(os.path.join(out_dir, 'meta.pkl'), 'wb') as f:
+    with open(os.path.join(out_dir, "meta.pkl"), "wb") as f:
         pickle.dump(meta, f)

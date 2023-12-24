@@ -75,16 +75,33 @@ This command reads the `pyproject.toml` file, and installs all the dependencies 
 
 The pre-assembled collection of CIF files which have been downloaded from the 
 [Materials Project (MP)](materialsproject.org), the [OQMD](https://oqmd.org/), and 
-[NOMAD](https://nomad-lab.eu/nomad-lab/) are contained in the `cifs_v1_orig.pkl.gz` file. To download this file, 
+[NOMAD](https://nomad-lab.eu/nomad-lab/) are contained in the `cifs_v1_orig.tar.gz` file. To download this file, 
 execute the following command from the root of the cloned project:
 
 ```shell
-$ python bin/download.py cifs_v1_orig.pkl.gz
+$ python bin/download.py cifs_v1_orig.tar.gz
 ```
-This file contains a serialized Python list of 3,551,492 CIF strings, each as a 2-tuple, `(ID, CIF string)`, where 
-every ID is unique.
 
-_NOTE: This file is over 600 MB in size._
+This archive contains 3,551,492 CIF files, each containing a unique filename assigned by us which indicates the 
+origin of the file, which we refer to as its ID. For subsequent steps, we require that inputs be provided as a 
+serialized Python list, in pickle format, because it is the most efficient format we found for working with over 
+3 million CIF files in this context. Therefore, we provide a utility for converting the .tar.gz file to a .pkl.gz file:
+
+```shell
+$ python bin/tar_to_pickle.py cifs_v1_orig.tar.gz cifs_v1_orig.pkl.gz
+```
+
+The resulting .pkl.gz file contains a serialized Python list of 3,551,492 `(ID, CIF string)` 2-tuples. 
+Alternatively, the `cifs_v1_orig.pkl.gz` can be downloaded directly:
+
+```shell
+python bin/download.py cifs_v1_orig.pkl.gz
+```
+
+However, please be aware that this .pkl.gz file is reliant on Python's serialization mechanism, and may not be 
+compatible with future versions of Python.
+
+_NOTE: These files are close to 700 MB in size._
 
 _This dataset includes data from the [Materials Project](https://materialsproject.org/)._ 
 > A. Jain*, S.P. Ong*, G. Hautier, W. Chen, W.D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, K.A. 
@@ -123,6 +140,9 @@ Alternatively, the `cifs_v1_dedup.pkl.gz` file can be downloaded directly:
 ```shell
 $ python bin/download.py cifs_v1_dedup.pkl.gz
 ```
+
+The `cifs_v1_dedup.tar.gz` file can also be downloaded and converted locally to the `cifs_v1_dedup.pkl.gz` file using 
+the `tar_to_pickle.py` script.
 
 ### Pre-processing the CIF Files
 
@@ -179,7 +199,8 @@ TODO
 
 ### Using Your Own CIF Files
 
-TODO - from a user-provided directory of CIFs, script to prepare a .pkl.gz file like the original downloaded CIFs
+TODO - from a user-provided directory of CIFs, prepare a .pkl.gz file like the original downloaded CIFs
+- simply tar and gzip the directory of CIFs, and use `bin/tar_to_pickle.py` 
 
 ## Training the Model
 
