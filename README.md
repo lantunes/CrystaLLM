@@ -238,7 +238,23 @@ $ python bin/download.py tokens_v1_all.tar.gz
 
 ### Identifying CIF Start Indices
 
-TODO
+At training time, the token start indices of the training CIFs can optionally be provided. These must be extracted from
+the tokenized files. To identify the token start indices:
+
+```shell
+$ python bin/identify_starts.py \
+--dataset_fname tokens_v1_train_val.tar.gz \
+--out_fname starts_v1_train.pkl
+```
+
+Note that only the training set start indices are extracted, and not the validation set's, despite it being present in 
+the provided file.
+
+Alternatively, the `starts_v1_train.pkl` file can be downloaded directly:
+
+```shell
+$ python bin/download.py starts_v1_train.pkl
+```
 
 ### Using Your Own CIF Files
 
