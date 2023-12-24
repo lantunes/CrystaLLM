@@ -207,19 +207,20 @@ TODO
 ### Using Your Own CIF Files
 
 To use your own CIF files, prepare a directory containing the CIF files. Ensure that each CIF file has a unique name
-and ends with the `.cif` extension.
+and ends with the `.cif` extension. Then, perform the following steps:
 
+1. Prepare the custom CIF files:
+```shell
+$ python bin/prepare_custom.py custom_cifs/ custom_cifs.tar.gz
 ```
-my_struct = Structure.from_file("my.cif")
-CifWriter(struct=my_struct, symprec=0.1).write_file("my.cif")
+where `custom_cifs/` is the name of the directory containing the CIF files to be prepared, and `custom_cifs.tar.gz` is
+the name of the .tar.gz file to be created, which will contain the prepared CIF files.
+
+2. To use the downstream scripts (e.g. to pre-process the files so that they can be split and tokenized), convert the 
+.tar.gz file to a .pkl.gz file:
+```shell
+$ python bin/tar_to_pickle.py custom_cifs.tar.gz custom_cifs.pkl.gz
 ```
-
-TODO - from a user-provided directory of CIFs, prepare a .pkl.gz file like the original downloaded CIFs
-1 - Create a directory with your own CIF files. Ensure that each CIF file has a unique name
-and ends with the `.cif` extension.
-1 - Convert using script with pymatgen -> .tar.gz 
-2 - use `bin/tar_to_pickle.py` 
-
 
 ## Training the Model
 
