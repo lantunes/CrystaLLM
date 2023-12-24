@@ -36,7 +36,7 @@ def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
 
     while not task_queue.empty():
         try:
-            cif_str = task_queue.get_nowait()
+            id, cif_str = task_queue.get_nowait()
         except Empty:
             break
 
@@ -50,7 +50,7 @@ def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
             cif_str = semisymmetrize_cif(cif_str)
             cif_str = add_atomic_props_block(cif_str, oxi)
             cif_str = round_numbers(cif_str, decimal_places=decimal_places)
-            augmented_cifs.append(cif_str)
+            augmented_cifs.append((id, cif_str))
         except Exception:
             pass
 
@@ -94,8 +94,8 @@ if __name__ == '__main__':
     task_queue = manager.Queue()
     result_queue = manager.Queue()
 
-    for _, cif in cifs:
-        task_queue.put(cif)
+    for id, cif in cifs:
+        task_queue.put((id, cif))
 
     watcher = mp.Process(target=progress_listener, args=(progress_queue, len(cifs),))
 

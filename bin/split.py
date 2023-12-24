@@ -7,8 +7,9 @@ from sklearn.model_selection import train_test_split
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Split CIF data into train, validation, and test sets.")
     parser.add_argument("name", type=str,
-                        help="Path to the file with the CIFs to be split. It is expected that "
-                             "the file contains the gzipped contents of a pickled Python list of CIF strings.")
+                        help="Path to the file with the CIFs to be split. It is expected that the file "
+                             "contains the gzipped contents of a pickled Python list of tuples, of (id, cif) "
+                             "pairs.")
     parser.add_argument("--train_out", type=str, required=True,
                         help="Path to the file where the training set CIFs will be stored. "
                              "The file will contain the gzipped contents of a pickle dump. It is "

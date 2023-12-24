@@ -154,13 +154,17 @@ $ python bin/preprocess.py cifs_v1_dedup.pkl.gz --out cifs_v1_preproc.pkl.gz --w
 ```
 
 This will produce the `cifs_v1_preproc.pkl.gz` file, which contains a serialized Python list of 2,285,719 augmented 
-CIF strings. The number of processes can be specified with the `workers` argument, to speed up processing.
+CIF strings, each as a 2-tuple, `(ID, CIF string)`, where every ID is unique. The number of processes can be specified 
+with the `workers` argument, to speed up processing.
 
 Alternatively, the `cifs_v1_preproc.pkl.gz` file can be downloaded directly:
 
 ```shell
 $ python bin/download.py cifs_v1_preproc.pkl.gz
 ```
+
+The `cifs_v1_preproc.tar.gz` file can also be downloaded and converted locally to the `cifs_v1_preproc.pkl.gz` file using 
+the `tar_to_pickle.py` script.
 
 ### Splitting the Dataset into Train, Validation and Test Sets
 
@@ -178,9 +182,9 @@ This will produce the `cifs_v1_train.pkl.gz`, `cifs_v1_val.pkl.gz`, and `cifs_v1
 `random_state`, `validation_size`, and `test_size` arguments can also be specified, but have default values of 
 `20230610`, `0.10`, and `0.0045`, respectively.
 
-The `cifs_v1_train.pkl.gz` file contains a serialized Python list of 2,047,889 CIF strings. The `cifs_v1_val.pkl.gz`
-file contains a serialized Python list of 227,544 CIF strings. The `cifs_v1_test.pkl.gz` file contains a serialized 
-Python list of 10,286 CIF strings.
+The `cifs_v1_train.pkl.gz` file contains a serialized Python list with 2,047,889 entries. The `cifs_v1_val.pkl.gz`
+file contains a serialized Python list with 227,544 CIF entries. The `cifs_v1_test.pkl.gz` file contains a serialized 
+Python list with 10,286 entries. Each entry is a 2-tuple, `(ID, CIF string)`, where every ID is unique.
 
 Alternatively, the `cifs_v1_train.pkl.gz`, `cifs_v1_val.pkl.gz`, and `cifs_v1_test.pkl.gz` files can be downloaded 
 directly, using, for example:
@@ -188,6 +192,9 @@ directly, using, for example:
 ```shell
 $ python bin/download.py cifs_v1_train.pkl.gz
 ```
+
+The `cifs_v1_train.tar.gz`, `cifs_v1_val.tar.gz`, and `cifs_v1_test.tar.gz` files can also be downloaded and converted 
+locally to the corresponding .pkl.gz files using  the `tar_to_pickle.py` script.
 
 ### Tokenizing the Dataset
 
@@ -199,8 +206,20 @@ TODO
 
 ### Using Your Own CIF Files
 
+To use your own CIF files, prepare a directory containing the CIF files. Ensure that each CIF file has a unique name
+and ends with the `.cif` extension.
+
+```
+my_struct = Structure.from_file("my.cif")
+CifWriter(struct=my_struct, symprec=0.1).write_file("my.cif")
+```
+
 TODO - from a user-provided directory of CIFs, prepare a .pkl.gz file like the original downloaded CIFs
-- simply tar and gzip the directory of CIFs, and use `bin/tar_to_pickle.py` 
+1 - Create a directory with your own CIF files. Ensure that each CIF file has a unique name
+and ends with the `.cif` extension.
+1 - Convert using script with pymatgen -> .tar.gz 
+2 - use `bin/tar_to_pickle.py` 
+
 
 ## Training the Model
 

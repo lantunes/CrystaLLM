@@ -37,7 +37,7 @@ def tokenize(chunk_of_cifs, symmetrized, includes_props, queue=None):
 
 def preprocess(cifs_raw):
     cifs = []
-    for cif in tqdm(cifs_raw):
+    for _, cif in tqdm(cifs_raw):
         # filter out some lines in the CIF
         lines = cif.split('\n')
         cif_lines = []
@@ -54,10 +54,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Tokenize CIF files.")
     parser.add_argument("--train_fname", type=str, required=True,
                         help="Path to the file with the training set CIFs to be tokenized. It is expected that "
-                             "the file contains the gzipped contents of a pickled Python list of CIF strings.")
+                             "the file contains the gzipped contents of a pickled Python list of tuples, of (id, cif) "
+                             "pairs.")
     parser.add_argument("--val_fname", type=str, default="",
                         help="Path to the file with the validation set CIFs to be tokenized. It is expected that "
-                             "the file contains the gzipped contents of a pickled Python list of CIF strings.")
+                             "the file contains the gzipped contents of a pickled Python list of tuples, of (id, cif) "
+                             "pairs.")
     parser.add_argument("--out_dir", type=str, required=True,
                         help="Output directory to store processed files.")
     parser.add_argument("--workers", type=int, default=4,
