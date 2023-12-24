@@ -6,18 +6,18 @@ from sklearn.model_selection import train_test_split
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Split CIF data into train, validation, and test sets.")
-    parser.add_argument("--cifs_fname", type=str, required=True,
+    parser.add_argument("name", type=str,
                         help="Path to the file with the CIFs to be split. It is expected that "
                              "the file contains the gzipped contents of a pickled Python list of CIF strings.")
-    parser.add_argument("--train_fname", type=str, required=True,
+    parser.add_argument("--train_out", type=str, required=True,
                         help="Path to the file where the training set CIFs will be stored. "
                              "The file will contain the gzipped contents of a pickle dump. It is "
                              "recommended that the filename end in `.pkl.gz`.")
-    parser.add_argument("--val_fname", type=str, required=True,
+    parser.add_argument("--val_out", type=str, required=True,
                         help="Path to the file where the validation set CIFs will be stored. "
                              "The file will contain the gzipped contents of a pickle dump. It is "
                              "recommended that the filename end in `.pkl.gz`.")
-    parser.add_argument("--test_fname", type=str, required=True,
+    parser.add_argument("--test_out", type=str, required=True,
                         help="Path to the file where the test set CIFs will be stored. "
                              "The file will contain the gzipped contents of a pickle dump. It is "
                              "recommended that the filename end in `.pkl.gz`.")
@@ -29,10 +29,10 @@ if __name__ == '__main__':
                         help="Size of the test set as a fraction.")
     args = parser.parse_args()
 
-    cifs_fname = args.cifs_fname
-    train_fname = args.train_fname
-    val_fname = args.val_fname
-    test_fname = args.test_fname
+    cifs_fname = args.name
+    train_fname = args.train_out
+    val_fname = args.val_out
+    test_fname = args.test_out
     random_state = args.random_state
     validation_size = args.validation_size
     test_size = args.test_size

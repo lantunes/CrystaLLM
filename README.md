@@ -19,7 +19,7 @@ model definition, training, and inference code in this repository is derived fro
 - [Obtaining the Training Data](#obtaining-the-training-data)
   - [Downloading the Original CIF Files](#downloading-the-original-cif-files)
   - [Deduplicating the Original CIF Files](#deduplicating-the-original-cif-files)
-  - [Pre-processing the Original CIF Files](#pre-processing-the-original-cif-files)
+  - [Pre-processing the CIF Files](#pre-processing-the-cif-files)
   - [Splitting the Dataset into Train, Validation and Test Sets](#splitting-the-dataset-into-train-validation-and-test-sets)
   - [Tokenizing the Dataset](#tokenizing-the-dataset)
   - [Identifying CIF Start Indices](#identifying-cif-start-indices)
@@ -86,33 +86,88 @@ every ID is unique.
 
 _NOTE: This file is over 600 MB in size._
 
-_This file includes data from the [Materials Project](https://materialsproject.org/)._ 
+_This dataset includes data from the [Materials Project](https://materialsproject.org/)._ 
 > A. Jain*, S.P. Ong*, G. Hautier, W. Chen, W.D. Richards, S. Dacek, S. Cholia, D. Gunter, D. Skinner, G. Ceder, K.A. 
 Persson (*=equal contributions). The Materials Project: A materials genome approach to accelerating materials 
 innovation. APL Materials, 2013, 1(1), 011002.
 
-_This file includes data from the [OQMD database](http://oqmd.org/)._
+_This dataset includes data from the [OQMD database](http://oqmd.org/)._
 >  J. E. Saal, S. Kirklin, M. Aykol, B. Meredig, and C. Wolverton. Materials Design and Discovery with 
 High-Throughput Density Functional Theory: The Open Quantum Materials Database (OQMD). JOM 65, 1501-1509 (2013).
 
-_This file includes data from [NOMAD](https://nomad-lab.eu/nomad-lab/)._
+_This dataset includes data from [NOMAD](https://nomad-lab.eu/nomad-lab/)._
 > M. Scheidgen, L. Himanen, A. Ladines, D. Sikter, M. Nakhaee, Á. Fekete, T. Chang, A. Golparvar, J. Márquez, 
 S. Brockhauser, S. Brückner, L. Ghiringhelli, F. Dietrich, D. Lehmberg, T. Denell, A. Albino 1, H. Näsström, S. Shabih, 
 F. Dobener, M. Kühbach, R. Mozumder, J. Rudzinski, N. Daelman, J. Pizarro, M. Kuban, C. Salazar, P. Ondračka, 
 H.-J. Bungartz, C. Draxl. NOMAD: A distributed web-based platform for managing materials science research data. Journal 
 of Open Source Software, 8(90), 5388.
 
+_This dataset is licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)._
+
 ### Deduplicating the Original CIF Files
 
-TODO
+The original CIF dataset contains duplicates when combinations of cell composition and space group are considered. To 
+disambiguate CIF files that have the same combination of cell composition and space group, we choose the CIF file with
+the lowest volume per formula unit. To deduplicate the original CIF file dataset, execute the following command from 
+the root of the cloned project:
 
-### Pre-processing the Original CIF Files
+```shell
+$ python bin/deduplicate.py cifs_v1_orig.pkl.gz --out cifs_v1_dedup.pkl.gz
+```
 
-TODO
+This will produce the `cifs_v1_dedup.pkl.gz` file, which contains a serialized Python list of 2,285,914 CIF strings, 
+each as a 2-tuple, `(ID, CIF string)`, where every ID is unique.
+
+Alternatively, the `cifs_v1_dedup.pkl.gz` file can be downloaded directly:
+
+```shell
+$ python bin/download.py cifs_v1_dedup.pkl.gz
+```
+
+### Pre-processing the CIF Files
+
+Before the CIF dataset can be used, it must be standardized and augmented. We refer to this step as _pre-processing_.
+To pre-process the CIF dataset, execute the following command from the root of the cloned project:
+
+```shell
+$ python bin/preprocess.py cifs_v1_dedup.pkl.gz --out cifs_v1_preproc.pkl.gz --workers 4
+```
+
+This will produce the `cifs_v1_preproc.pkl.gz` file, which contains a serialized Python list of 2,285,719 augmented 
+CIF strings. The number of processes can be specified with the `workers` argument, to speed up processing.
+
+Alternatively, the `cifs_v1_preproc.pkl.gz` file can be downloaded directly:
+
+```shell
+$ python bin/download.py cifs_v1_preproc.pkl.gz
+```
 
 ### Splitting the Dataset into Train, Validation and Test Sets
 
-TODO
+To split the CIF dataset into train, validation and test sets, execute the following command from the root of the 
+cloned project:
+
+```shell
+$ python bin/split.py cifs_v1_preproc.pkl.gz \
+--train_out cifs_v1_train.pkl.gz \
+--val_out cifs_v1_val.pkl.gz \
+--test_out cifs_v1_test.pkl.gz
+```
+
+This will produce the `cifs_v1_train.pkl.gz`, `cifs_v1_val.pkl.gz`, and `cifs_v1_test.pkl.gz` files. The 
+`random_state`, `validation_size`, and `test_size` arguments can also be specified, but have default values of 
+`20230610`, `0.10`, and `0.0045`, respectively.
+
+The `cifs_v1_train.pkl.gz` file contains a serialized Python list of 2,047,889 CIF strings. The `cifs_v1_val.pkl.gz`
+file contains a serialized Python list of 227,544 CIF strings. The `cifs_v1_test.pkl.gz` file contains a serialized 
+Python list of 10,286 CIF strings.
+
+Alternatively, the `cifs_v1_train.pkl.gz`, `cifs_v1_val.pkl.gz`, and `cifs_v1_test.pkl.gz` files can be downloaded 
+directly, using, for example:
+
+```shell
+$ python bin/download.py cifs_v1_train.pkl.gz
+```
 
 ### Tokenizing the Dataset
 
@@ -148,7 +203,11 @@ TODO
 
 ## Tests
 
-TODO
+To run the unit tests:
+
+```shell
+$ python -m unittest discover tests
+```
 
 ## Need Help?
 
