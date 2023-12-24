@@ -198,7 +198,43 @@ locally to the corresponding .pkl.gz files using  the `tar_to_pickle.py` script.
 
 ### Tokenizing the Dataset
 
-TODO
+Before the model can process the CIF files, they must be tokenized; that is, they must be converted into a sequence of 
+integers representing the distinct sequence of symbols that comprise the CIF files. Only the training set (and 
+optionally the validation set) need to be tokenized. To tokenize the CIF files:
+
+```shell
+$ python bin/tokenize_cifs.py \
+--train_fname cifs_v1_train.pkl.gz \
+--val_fname cifs_v1_val.pkl.gz \
+--out_dir tokens_v1_train_val/ \
+--workers 4
+```
+The result of this command is that the `tokens_v1_train_val/` directory will be created. In the directory, the following
+files will be present: `train.bin`, `val.bin`, `meta.pkl`, and `tokens_v1_train_val.tar.gz`. The files ending in .bin 
+contain the token indices. These files are NumPy arrays of type `np.uint16` that have been serialized to a binary 
+format. The file `tokens_v1_train_val.tar.gz` is simply a compressed tarball containing the `train.bin`, `val.bin`, and 
+`meta.pkl` files, for convenience.
+
+Alternatively, the `tokens_v1_train_val.tar.gz` file can be downloaded directly:
+
+```shell
+$ python bin/download.py tokens_v1_train_val.tar.gz
+```
+
+Another option is to tokenize the entire dataset:
+
+```shell
+$ python bin/tokenize_cifs.py \
+--train_fname cifs_v1_preproc.pkl.gz \
+--out_dir tokens_v1_all/ \
+--workers 4
+```
+
+The resulting `tokens_v1_all.tar.gz` file can alternatively be downloaded directly:
+
+```shell
+$ python bin/download.py tokens_v1_all.tar.gz
+```
 
 ### Identifying CIF Start Indices
 

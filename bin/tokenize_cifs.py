@@ -3,6 +3,7 @@ import numpy as np
 import random
 import gzip
 import argparse
+import tarfile
 import multiprocessing as mp
 from tqdm import tqdm
 try:
@@ -168,3 +169,14 @@ if __name__ == '__main__':
     }
     with open(os.path.join(out_dir, "meta.pkl"), "wb") as f:
         pickle.dump(meta, f)
+
+    # create a tar.gz archive of the out_dir
+    out_dir_name = os.path.basename(os.path.normpath(out_dir))
+    tar_gz_filename = os.path.join(out_dir, f"{out_dir_name}.tar.gz")
+    with tarfile.open(tar_gz_filename, "w:gz") as tar:
+        for filename in ["train.bin", "val.bin", "meta.pkl"]:
+            file_path = os.path.join(out_dir, filename)
+            if os.path.exists(file_path):
+                tar.add(file_path, arcname=os.path.basename(file_path))
+
+    print(f"tarball created at {tar_gz_filename}")

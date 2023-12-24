@@ -15,7 +15,6 @@ def process_cif_files(input_dir, output_tar_gz):
                     struct = Structure.from_file(file_path)
                     cif_content = CifWriter(struct=struct, symprec=0.1).__str__()
 
-                    # Write to a file-like object
                     cif_file = tarfile.TarInfo(name=file)
                     cif_bytes = cif_content.encode("utf-8")
                     cif_file.size = len(cif_bytes)
