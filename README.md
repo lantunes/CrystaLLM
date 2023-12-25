@@ -49,13 +49,13 @@ Perform the following steps to create and activate a local environment:
 1. Create a Python virtual environment:
 
 ```shell
-$ python -m venv crystallm_venv
+python -m venv crystallm_venv
 ```
 
 2. Activate the virtual environment:
 
 ```shell
-$ source crystallm_venv/bin/activate
+source crystallm_venv/bin/activate
 ```
 
 ### Installing Dependencies
@@ -64,7 +64,7 @@ Clone this repository to your local machine. Then, from the root of the cloned p
 by running:
 
 ```shell
-$ poetry install
+poetry install
 ```
 
 This command reads the `pyproject.toml` file, and installs all the dependencies in the virtual environment.
@@ -79,7 +79,7 @@ The pre-assembled collection of CIF files which have been downloaded from the
 execute the following command from the root of the cloned project:
 
 ```shell
-$ python bin/download.py cifs_v1_orig.tar.gz
+python bin/download.py cifs_v1_orig.tar.gz
 ```
 
 This archive contains 3,551,492 CIF files, each containing a unique filename assigned by us which indicates the 
@@ -88,7 +88,7 @@ serialized Python list, in pickle format, because it is the most efficient forma
 3 million CIF files in this context. Therefore, we provide a utility for converting the .tar.gz file to a .pkl.gz file:
 
 ```shell
-$ python bin/tar_to_pickle.py cifs_v1_orig.tar.gz cifs_v1_orig.pkl.gz
+python bin/tar_to_pickle.py cifs_v1_orig.tar.gz cifs_v1_orig.pkl.gz
 ```
 
 The resulting .pkl.gz file contains a serialized Python list of 3,551,492 `(ID, CIF string)` 2-tuples. 
@@ -129,7 +129,7 @@ the lowest volume per formula unit. To deduplicate the original CIF file dataset
 the root of the cloned project:
 
 ```shell
-$ python bin/deduplicate.py cifs_v1_orig.pkl.gz --out cifs_v1_dedup.pkl.gz
+python bin/deduplicate.py cifs_v1_orig.pkl.gz --out cifs_v1_dedup.pkl.gz
 ```
 
 This will produce the `cifs_v1_dedup.pkl.gz` file, which contains a serialized Python list of 2,285,914 CIF strings, 
@@ -138,7 +138,7 @@ each as a 2-tuple, `(ID, CIF string)`, where every ID is unique.
 Alternatively, the `cifs_v1_dedup.pkl.gz` file can be downloaded directly:
 
 ```shell
-$ python bin/download.py cifs_v1_dedup.pkl.gz
+python bin/download.py cifs_v1_dedup.pkl.gz
 ```
 
 The `cifs_v1_dedup.tar.gz` file can also be downloaded and converted locally to the `cifs_v1_dedup.pkl.gz` file using 
@@ -150,7 +150,7 @@ Before the CIF dataset can be used, it must be standardized and augmented. We re
 To pre-process the CIF dataset, execute the following command from the root of the cloned project:
 
 ```shell
-$ python bin/preprocess.py cifs_v1_dedup.pkl.gz --out cifs_v1_preproc.pkl.gz --workers 4
+python bin/preprocess.py cifs_v1_dedup.pkl.gz --out cifs_v1_preproc.pkl.gz --workers 4
 ```
 
 This will produce the `cifs_v1_preproc.pkl.gz` file, which contains a serialized Python list of 2,285,719 augmented 
@@ -160,7 +160,7 @@ with the `workers` argument, to speed up processing.
 Alternatively, the `cifs_v1_preproc.pkl.gz` file can be downloaded directly:
 
 ```shell
-$ python bin/download.py cifs_v1_preproc.pkl.gz
+python bin/download.py cifs_v1_preproc.pkl.gz
 ```
 
 The `cifs_v1_preproc.tar.gz` file can also be downloaded and converted locally to the `cifs_v1_preproc.pkl.gz` file using 
@@ -172,7 +172,7 @@ To split the CIF dataset into train, validation and test sets, execute the follo
 cloned project:
 
 ```shell
-$ python bin/split.py cifs_v1_preproc.pkl.gz \
+python bin/split.py cifs_v1_preproc.pkl.gz \
 --train_out cifs_v1_train.pkl.gz \
 --val_out cifs_v1_val.pkl.gz \
 --test_out cifs_v1_test.pkl.gz
@@ -190,7 +190,7 @@ Alternatively, the `cifs_v1_train.pkl.gz`, `cifs_v1_val.pkl.gz`, and `cifs_v1_te
 directly, using, for example:
 
 ```shell
-$ python bin/download.py cifs_v1_train.pkl.gz
+python bin/download.py cifs_v1_train.pkl.gz
 ```
 
 The `cifs_v1_train.tar.gz`, `cifs_v1_val.tar.gz`, and `cifs_v1_test.tar.gz` files can also be downloaded and converted 
@@ -203,7 +203,7 @@ integers representing the distinct sequence of symbols that comprise the CIF fil
 optionally the validation set) need to be tokenized. To tokenize the CIF files:
 
 ```shell
-$ python bin/tokenize_cifs.py \
+python bin/tokenize_cifs.py \
 --train_fname cifs_v1_train.pkl.gz \
 --val_fname cifs_v1_val.pkl.gz \
 --out_dir tokens_v1_train_val/ \
@@ -218,13 +218,13 @@ format. The file `tokens_v1_train_val.tar.gz` is simply a compressed tarball con
 Alternatively, the `tokens_v1_train_val.tar.gz` file can be downloaded directly:
 
 ```shell
-$ python bin/download.py tokens_v1_train_val.tar.gz
+python bin/download.py tokens_v1_train_val.tar.gz
 ```
 
 Another option is to tokenize the entire dataset:
 
 ```shell
-$ python bin/tokenize_cifs.py \
+python bin/tokenize_cifs.py \
 --train_fname cifs_v1_preproc.pkl.gz \
 --out_dir tokens_v1_all/ \
 --workers 4
@@ -233,7 +233,7 @@ $ python bin/tokenize_cifs.py \
 The resulting `tokens_v1_all.tar.gz` file can alternatively be downloaded directly:
 
 ```shell
-$ python bin/download.py tokens_v1_all.tar.gz
+python bin/download.py tokens_v1_all.tar.gz
 ```
 
 ### Identifying CIF Start Indices
@@ -242,7 +242,7 @@ At training time, the token start indices of the training CIFs can optionally be
 the tokenized files. To identify the token start indices:
 
 ```shell
-$ python bin/identify_starts.py \
+python bin/identify_starts.py \
 --dataset_fname tokens_v1_train_val.tar.gz \
 --out_fname starts_v1_train.pkl
 ```
@@ -253,7 +253,7 @@ the provided file.
 Alternatively, the `starts_v1_train.pkl` file can be downloaded directly:
 
 ```shell
-$ python bin/download.py starts_v1_train.pkl
+python bin/download.py starts_v1_train.pkl
 ```
 
 ### Using Your Own CIF Files
@@ -263,7 +263,7 @@ and ends with the `.cif` extension. Then, perform the following steps:
 
 1. Prepare the custom CIF files:
 ```shell
-$ python bin/prepare_custom.py custom_cifs/ custom_cifs.tar.gz
+python bin/prepare_custom.py custom_cifs/ custom_cifs.tar.gz
 ```
 where `custom_cifs/` is the name of the directory containing the CIF files to be prepared, and `custom_cifs.tar.gz` is
 the name of the .tar.gz file to be created, which will contain the prepared CIF files.
@@ -271,7 +271,7 @@ the name of the .tar.gz file to be created, which will contain the prepared CIF 
 2. To use the downstream scripts (e.g. to pre-process the files so that they can be split and tokenized), convert the 
 .tar.gz file to a .pkl.gz file:
 ```shell
-$ python bin/tar_to_pickle.py custom_cifs.tar.gz custom_cifs.pkl.gz
+python bin/tar_to_pickle.py custom_cifs.tar.gz custom_cifs.pkl.gz
 ```
 
 ## Training the Model
@@ -299,7 +299,7 @@ TODO
 To run the unit tests:
 
 ```shell
-$ python -m unittest discover tests
+python -m unittest discover tests
 ```
 
 ## Need Help?
