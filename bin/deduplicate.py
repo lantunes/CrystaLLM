@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".")
 import argparse
 from tqdm import tqdm
 import gzip
@@ -32,6 +34,7 @@ if __name__ == '__main__':
     cifs_fname = args.name
     out_fname = args.out
 
+    print(f"loading data from {cifs_fname}...")
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
 
@@ -59,5 +62,6 @@ if __name__ == '__main__':
 
     print(f"number of entries to write: {len(selected_entries):,}")
 
+    print(f"saving data to {out_fname}...")
     with gzip.open(out_fname, "wb") as f:
         pickle.dump(selected_entries, f, protocol=pickle.HIGHEST_PROTOCOL)

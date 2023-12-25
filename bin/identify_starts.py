@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".")
 import os
 import tarfile
 import pickle
@@ -56,7 +58,7 @@ if __name__ == '__main__':
 
     curr_cif_tokens = []
 
-    for i, id in tqdm(enumerate(train_ids), total=len(train_ids)):
+    for i, id in tqdm(enumerate(train_ids), total=len(train_ids), desc="identifying starts..."):
         token = meta["itos"][id]
 
         if token == "data_":
@@ -77,6 +79,7 @@ if __name__ == '__main__':
 
             curr_cif_tokens = []
 
+    print("writing start indices...")
     with open(out_fname, "wb") as f:
         pickle.dump(all_cif_start_indices, f, protocol=pickle.HIGHEST_PROTOCOL)
 

@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".")
 import os
 import numpy as np
 import random
@@ -18,7 +20,7 @@ from lib import (
 
 
 def progress_listener(queue, n):
-    pbar = tqdm(total=n)
+    pbar = tqdm(total=n, desc="tokenizing...")
     while True:
         message = queue.get()
         if message == "kill":
@@ -29,7 +31,7 @@ def progress_listener(queue, n):
 def tokenize(chunk_of_cifs, symmetrized, includes_props, queue=None):
     tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
     tokenized = []
-    for cif in tqdm(chunk_of_cifs, disable=queue is not None):
+    for cif in tqdm(chunk_of_cifs, disable=queue is not None, desc="tokenizing..."):
         if queue:
             queue.put(1)
         tokenized.append(tokenizer.tokenize_cif(cif))
@@ -38,7 +40,7 @@ def tokenize(chunk_of_cifs, symmetrized, includes_props, queue=None):
 
 def preprocess(cifs_raw):
     cifs = []
-    for _, cif in tqdm(cifs_raw):
+    for _, cif in tqdm(cifs_raw, desc="preparing files..."):
         # filter out some lines in the CIF
         lines = cif.split('\n')
         cif_lines = []
@@ -67,8 +69,6 @@ if __name__ == '__main__':
                         help="Number of workers to use for processing.")
     args = parser.parse_args()
 
-    # TODO we should tar and gzip the output folder
-
     train_fname = args.train_fname
     val_fname = args.val_fname
     out_dir = args.out_dir
@@ -82,10 +82,12 @@ if __name__ == '__main__':
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
+    print(f"loading data from {train_fname}...")
     with gzip.open(train_fname, "rb") as f:
         cifs_raw_train = pickle.load(f)
 
     if has_val:
+        print(f"loading data from {val_fname}...")
         with gzip.open(val_fname, "rb") as f:
             cifs_raw_val = pickle.load(f)
 
@@ -137,15 +139,15 @@ if __name__ == '__main__':
 
     # create a single stream of tokens that will be the dataset
     train_data = []
-    for t in tqdm(tokenized_cifs_train):
+    for t in tqdm(tokenized_cifs_train, desc="concatenating train tokens..."):
         train_data.extend(t)
 
     if has_val:
         val_data = []
-        for t in tqdm(tokenized_cifs_val):
+        for t in tqdm(tokenized_cifs_val, desc="concatenating val tokens..."):
             val_data.extend(t)
 
-    # encode both to integers
+    print("encoding...")
     tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
     train_ids = tokenizer.encode(train_data)
     print(f"train has {len(train_ids):,} tokens")
@@ -154,7 +156,7 @@ if __name__ == '__main__':
         print(f"val has {len(val_ids):,} tokens")
     print(f"vocab size: {len(tokenizer.token_to_id)}")
 
-    # export to bin files
+    print("exporting to .bin files...")
     train_ids = np.array(train_ids, dtype=np.uint16)
     train_ids.tofile(os.path.join(out_dir, "train.bin"))
     if has_val:
@@ -170,13 +172,14 @@ if __name__ == '__main__':
     with open(os.path.join(out_dir, "meta.pkl"), "wb") as f:
         pickle.dump(meta, f)
 
-    # create a tar.gz archive of the out_dir
-    out_dir_name = os.path.basename(os.path.normpath(out_dir))
-    tar_gz_filename = os.path.join(out_dir, f"{out_dir_name}.tar.gz")
+    print("creating tar.gz archive...")
+    subdir_name = os.path.basename(os.path.normpath(out_dir))
+    tar_gz_filename = os.path.join(out_dir, f"{subdir_name}.tar.gz")
     with tarfile.open(tar_gz_filename, "w:gz") as tar:
         for filename in ["train.bin", "val.bin", "meta.pkl"]:
             file_path = os.path.join(out_dir, filename)
             if os.path.exists(file_path):
-                tar.add(file_path, arcname=os.path.basename(file_path))
+                arcname = os.path.join(subdir_name, filename)
+                tar.add(file_path, arcname=arcname)
 
     print(f"tarball created at {tar_gz_filename}")

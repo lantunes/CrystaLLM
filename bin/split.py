@@ -38,6 +38,7 @@ if __name__ == '__main__':
     validation_size = args.validation_size
     test_size = args.test_size
 
+    print(f"loading data from {cifs_fname}...")
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
 
@@ -49,9 +50,9 @@ if __name__ == '__main__':
     cifs_train, cifs_val = train_test_split(cifs_train, test_size=validation_size,
                                             shuffle=True, random_state=random_state)
 
-    print(f"number of CIFs in train set: {len(cifs_train)}")
-    print(f"number of CIFs in validation set: {len(cifs_val)}")
-    print(f"number of CIFs in test set: {len(cifs_test)}")
+    print(f"number of CIFs in train set: {len(cifs_train):,}")
+    print(f"number of CIFs in validation set: {len(cifs_val):,}")
+    print(f"number of CIFs in test set: {len(cifs_test):,}")
 
     print("writing train set...")
     with gzip.open(train_fname, "wb") as f:

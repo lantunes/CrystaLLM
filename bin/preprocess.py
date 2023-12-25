@@ -1,3 +1,5 @@
+import sys
+sys.path.append(".")
 import argparse
 import gzip
 from tqdm import tqdm
@@ -86,6 +88,7 @@ if __name__ == '__main__':
     decimal_places = args.decimal_places
     workers = args.workers
 
+    print(f"loading data from {cifs_fname}...")
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
 
@@ -116,5 +119,6 @@ if __name__ == '__main__':
 
     print(f"number of CIFs: {len(modified_cifs)}")
 
+    print(f"saving data to {out_fname}...")
     with gzip.open(out_fname, "wb") as f:
         pickle.dump(modified_cifs, f, protocol=pickle.HIGHEST_PROTOCOL)
