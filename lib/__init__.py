@@ -16,3 +16,5 @@ from ._utils import get_unit_cell_volume, plot_true_vs_predicted, get_compositio
 from ._embeddings import atom_vectors_from_csv
 
 from ._zmq_scorer import ZMQScorer
+
+from ._configuration import parse_config
