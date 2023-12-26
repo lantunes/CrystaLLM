@@ -9,8 +9,9 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from model import GPT, GPTConfig
 from crystallm import (
+    GPT,
+    GPTConfig,
     CIFTokenizer,
     CIFScorer,
     bond_length_reasonableness_score,

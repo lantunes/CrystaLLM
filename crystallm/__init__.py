@@ -10,6 +10,11 @@ from ._metrics import (
     is_formula_consistent,
 )
 
+from ._model import (
+    GPT,
+    GPTConfig,
+)
+
 from ._utils import (
     get_unit_cell_volume,
     get_atomic_props_block,

@@ -1,12 +1,13 @@
-import sys
-sys.path.append(".")
 import os
 import argparse
 import torch
 import pandas as pd
 import csv
-from model import GPTConfig, GPT
 from zipfile import ZipFile
+from crystallm import (
+    GPT,
+    GPTConfig,
+)
 from mcts_sampler import (
     MCTSSampler,
     MCTSEvaluator,

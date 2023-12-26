@@ -1,12 +1,13 @@
 """
 Sample from a trained model
 """
-import sys
-sys.path.append(".")
 import os
 from contextlib import nullcontext
 import torch
-from model import GPTConfig, GPT
+from crystallm import (
+    GPT,
+    GPTConfig,
+)
 
 from crystallm import get_cif_tokenizer
 
@@ -24,8 +25,6 @@ seed = 1337
 device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
 dtype = 'bfloat16' # 'float32' or 'bfloat16' or 'float16'
 compile = False # use PyTorch 2.0 to compile the model to be faster
-symmetrized = True # whether the CIF files are symmetrized
-includes_props = False # whether CIF files contain an atomic properties section
 exec(open(os.path.join(THIS_DIR, 'configurator.py')).read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
 
@@ -37,7 +36,7 @@ device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.aut
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
+tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
 encode = tokenizer.encode
 decode = tokenizer.decode
 
@@ -54,9 +53,6 @@ if init_from == 'resume':
         if k.startswith(unwanted_prefix):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
     model.load_state_dict(state_dict)
-elif init_from.startswith('gpt2'):
-    # init from a given GPT-2 model
-    model = GPT.from_pretrained(init_from, dict(dropout=0.0))
 
 model.eval()
 model.to(device)
@@ -74,7 +70,6 @@ x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
 with torch.no_grad():
     with ctx:
         for k in range(num_samples):
-            y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k,
-                               symmetrized=symmetrized, includes_props=includes_props)
+            y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k)
             print(decode(y[0].tolist()))
             print('---------------')

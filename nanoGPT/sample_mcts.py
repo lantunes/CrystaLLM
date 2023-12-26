@@ -1,13 +1,13 @@
 """
 Sample from a trained model using MCTS
 """
-import sys
-
-sys.path.append(".")
 import os
 from contextlib import nullcontext
 import torch
-from model import GPTConfig, GPT
+from crystallm import (
+    GPT,
+    GPTConfig,
+)
 from mcts_sampler import (
     MCTSSampler,
     MCTSEvaluator,

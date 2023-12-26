@@ -3,7 +3,10 @@ import torch
 import tarfile
 import pickle
 
-from model import GPTConfig, GPT
+from crystallm import (
+    GPT,
+    GPTConfig,
+)
 
 from crystallm import get_cif_tokenizer
 

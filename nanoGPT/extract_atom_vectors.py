@@ -4,7 +4,10 @@ import tarfile
 import pickle
 from pymatgen.core import Element
 
-from model import GPTConfig, GPT
+from crystallm import (
+    GPT,
+    GPTConfig,
+)
 
 from crystallm import get_cif_tokenizer
 
