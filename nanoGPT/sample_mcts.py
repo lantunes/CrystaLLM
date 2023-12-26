@@ -17,7 +17,7 @@ from mcts_sampler import (
     UCTSelector,
 )
 
-from lib import get_cif_tokenizer, ZMQScorer
+from crystallm import get_cif_tokenizer, ZMQScorer
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 

@@ -10,7 +10,7 @@ import torch
 from model import GPTConfig, GPT
 from mcts_sampler import MCTSLanguageModel, MCTSEvaluator
 
-from lib import get_cif_tokenizer, ZMQScorer
+from crystallm import get_cif_tokenizer, ZMQScorer
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 

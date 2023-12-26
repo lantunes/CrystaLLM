@@ -1,12 +1,13 @@
-import sys
-sys.path.append(".")
 import os
 import tarfile
 import pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
-from lib import extract_data_formula, extract_space_group_symbol
+from crystallm import (
+    extract_data_formula,
+    extract_space_group_symbol,
+)
 
 
 def get_underrepresented_set(underrepresented_fname):

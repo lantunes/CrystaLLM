@@ -1,7 +1,5 @@
-import sys
-sys.path.append(".")
 from dataclasses import dataclass
-from lib import parse_config
+from crystallm import parse_config
 from omegaconf import OmegaConf
 
 
@@ -47,11 +45,12 @@ class OptionDefaults:
     device: str = "cuda"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
     dtype: str = "bfloat16"  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
     compile: bool = True  # use PyTorch 2.0 to compile the model to be faster
-    underrep_p: float = 0.025
+    underrep_p: float = 0.0
     validate: bool = False  # whether to evaluate the model using the validation set
 
 
 if __name__ == "__main__":
     opt = parse_config(OptionDefaults)
 
+    print("Using configuration:")
     print(OmegaConf.to_yaml(opt))

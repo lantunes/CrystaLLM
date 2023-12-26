@@ -1,5 +1,5 @@
 import zmq
-from lib import CIFScorer
+from crystallm import CIFScorer
 
 
 class ZMQScorer(CIFScorer):

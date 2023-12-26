@@ -5,7 +5,7 @@ import pickle
 
 from model import GPTConfig, GPT
 
-from lib import get_cif_tokenizer
+from crystallm import get_cif_tokenizer
 
 
 if __name__ == '__main__':

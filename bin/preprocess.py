@@ -1,11 +1,9 @@
-import sys
-sys.path.append(".")
 import argparse
 import gzip
 from tqdm import tqdm
 import multiprocessing as mp
 from queue import Empty
-from lib import (
+from crystallm import (
     semisymmetrize_cif,
     replace_data_formula_with_nonreduced_formula,
     add_atomic_props_block,

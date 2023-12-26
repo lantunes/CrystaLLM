@@ -10,7 +10,7 @@ import torch
 from torch.nn import functional as F
 
 from model import GPT, GPTConfig
-from lib import (
+from crystallm import (
     CIFTokenizer,
     CIFScorer,
     bond_length_reasonableness_score,

@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from lib import get_cif_tokenizer
+from crystallm import get_cif_tokenizer
 
 # @torch.jit.script # good to enable when not using torch.compile, disable when using (our default)
 def new_gelu(x):

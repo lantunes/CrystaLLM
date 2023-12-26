@@ -1,5 +1,3 @@
-import sys
-sys.path.append(".")
 import os
 import numpy as np
 import random
@@ -13,7 +11,7 @@ try:
 except ImportError:
     import pickle
 
-from lib import (
+from crystallm import (
     get_cif_tokenizer,
     array_split,
 )

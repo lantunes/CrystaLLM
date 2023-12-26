@@ -8,7 +8,7 @@ from contextlib import nullcontext
 import torch
 from model import GPTConfig, GPT
 
-from lib import get_cif_tokenizer
+from crystallm import get_cif_tokenizer
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 

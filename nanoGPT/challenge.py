@@ -17,7 +17,7 @@ from mcts_sampler import (
     UCTSelector,
 )
 
-from lib import get_cif_tokenizer, ZMQScorer
+from crystallm import get_cif_tokenizer, ZMQScorer
 
 
 def prepare_model(seed, model_dir, device, compile):

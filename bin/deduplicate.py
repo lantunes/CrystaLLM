@@ -1,9 +1,7 @@
-import sys
-sys.path.append(".")
 import argparse
 from tqdm import tqdm
 import gzip
-from lib import (
+from crystallm import (
     extract_formula_nonreduced,
     extract_space_group_symbol,
     extract_volume,

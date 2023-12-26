@@ -1,7 +1,5 @@
 import math
-import numpy as np
 import re
-import warnings
 try:
     from pymatgen.core import Composition
     from pymatgen.io.cif import CifBlock
@@ -11,8 +9,6 @@ try:
     from pymatgen.transformations.standard_transformations import OxidationStateDecorationTransformation
 except ModuleNotFoundError as e:
     print(f"module not found: {e}")
-from itertools import permutations
-from sklearn.metrics import mean_absolute_error, r2_score
 
 
 def get_unit_cell_volume(a, b, c, alpha_deg, beta_deg, gamma_deg):
@@ -24,159 +20,6 @@ def get_unit_cell_volume(a, b, c, alpha_deg, beta_deg, gamma_deg):
                                     2 * math.cos(alpha_rad) * math.cos(beta_rad) * math.cos(gamma_rad)))
 
     return volume
-
-
-def remove_outliers(actual_values, predicted_values, multiplier=1.5):
-
-    def get_outlier_bounds(values, multiplier=multiplier):
-        q1, q3 = np.percentile(values, [25, 75])
-        iqr = q3 - q1
-        lower_bound = q1 - multiplier * iqr
-        upper_bound = q3 + multiplier * iqr
-        return lower_bound, upper_bound
-
-    actual_lower_bound, actual_upper_bound = get_outlier_bounds(actual_values)
-    predicted_lower_bound, predicted_upper_bound = get_outlier_bounds(predicted_values)
-
-    filtered_indices = [
-        i for i, (actual, predicted) in enumerate(zip(actual_values, predicted_values))
-        if actual_lower_bound <= actual <= actual_upper_bound
-           and predicted_lower_bound <= predicted <= predicted_upper_bound
-    ]
-
-    filtered_actual_values = [actual_values[i] for i in filtered_indices]
-    filtered_predicted_values = [predicted_values[i] for i in filtered_indices]
-
-    return filtered_actual_values, filtered_predicted_values
-
-
-def abs_r_score(actual, predicted):
-    """
-    An example comparison between |R| and R^2:
-    ```
-    import matplotlib.pyplot as plt
-    from sklearn.metrics import r2_score
-
-    actual =    np.array([1, 4, 1, 3, 6, 4, 5, 1, 2, 5])
-    predicted = np.array([1, 3, 1, 2, 1, 4, 4, 1, 3, 5])
-
-    print(abs_r_score(actual, predicted))
-    print(r2_score(actual, predicted))
-
-    plt.scatter(predicted, actual)
-    plt.yticks(list(range(7)))
-    plt.xticks(list(range(7)))
-    plt.show()
-    ```
-    """
-    actual = np.array(actual)
-    predicted = np.array(predicted)
-
-    if len(predicted) < 2:
-        msg = "|R| score is not well-defined with less than two samples."
-        warnings.warn(msg, UserWarning)
-        return float("nan")
-
-    # sum of the absolute errors
-    sae = np.sum(np.abs(actual - predicted))
-
-    # sum of the absolute deviations from the mean
-    sad = np.sum(np.abs(actual - np.mean(actual)))
-
-    return 1 - (sae / sad)
-
-
-def plot_true_vs_predicted(ax, true_y, predicted_y, xlabel="true", outlier_multiplier=None, ylabel="predicted",
-                           min_extra=1, max_extra=1, text=None, text_coords=None, metrics=True,
-                           alpha=None, title=None, trim_lims=False, size=3, color="lightblue",
-                           legend_labels=None, legend_fontsize=6, legend_title=None, legend_loc=None,
-                           rasterize=False, show_grid=True):
-
-    n_outliers_removed = 0
-
-    if outlier_multiplier is not None:
-        orig_count = len(true_y)
-        true_y, predicted_y = remove_outliers(true_y, predicted_y, outlier_multiplier)
-        n_outliers_removed = orig_count - len(true_y)
-        print(f"{text}: outliers removed: {n_outliers_removed}/{orig_count} "
-              f"({((orig_count - len(true_y))/orig_count)*100:.1f}%)")
-
-    line_start = np.min([np.min(true_y), np.min(predicted_y)]) - min_extra
-    line_end = np.max([np.max(true_y), np.max(predicted_y)]) + max_extra
-
-    scatter = ax.scatter(true_y, predicted_y, s=size, linewidth=0.1, edgecolor="black", c=color, alpha=alpha)
-    if rasterize:
-        scatter.set_rasterized(True)  # to facilitate saving a plot with many points as a pdf
-    ax.plot([line_start, line_end], [line_start, line_end], 'k-', linewidth=0.35)
-    if trim_lims:
-        ax.set_xlim(np.min(true_y) - min_extra, np.max(true_y) + max_extra)
-        ax.set_ylim(np.min(predicted_y) - min_extra, np.max(predicted_y) + max_extra)
-    else:
-        ax.set_xlim(line_start, line_end)
-        ax.set_ylim(line_start, line_end)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    if show_grid:
-        ax.grid(alpha=0.2)
-
-    if title is not None:
-        ax.set_title(title)
-
-    if text:
-        if text_coords is None:
-            text_coords = (0.01, 0.92)
-        ax.text(text_coords[0], text_coords[1], text, transform=ax.transAxes)
-
-    if metrics:
-        r2 = r2_score(true_y, predicted_y)
-        mae = mean_absolute_error(true_y, predicted_y)
-        abs_r = abs_r_score(true_y, predicted_y)
-        metrics_text = f"$R^2$: {r2:.2f}, MAE: {mae:.4f}, $|R|$: {abs_r:.2f}"
-        ax.text(0.2, 0.01, metrics_text, transform=ax.transAxes)
-
-    if legend_labels is not None:
-        leg = ax.legend(handles=scatter.legend_elements()[0], labels=legend_labels, fontsize=legend_fontsize,
-                         markerscale=0.5, loc=legend_loc)
-        if legend_title is not None:
-            leg.set_title(legend_title, prop={'size': legend_fontsize})
-
-    return n_outliers_removed
-
-
-def get_composition_permutations(composition_str):
-    composition = Composition(composition_str)
-    elements = tuple(composition.elements)
-    unique_permutations = set(permutations(elements))
-
-    permuted_compositions = [
-        "".join([str(el) + (str(int(composition[el])) if composition[el] != 1 else "") for el in perm]) for perm in
-        unique_permutations]
-
-    return permuted_compositions
-
-
-def get_oxi_state_decorated_structure(structure, all_oxi_states=False, max_sites=None):
-    """
-    first tries to use BVAnalyzer, and if that doesn't work (i.e. it raises a ValueError),
-    it uses ICSD statistics
-    """
-    try:
-        bva = BVAnalyzer()
-        # NOTE: this will raise a ValueError if the oxidation states can't be determined
-        struct = bva.get_oxi_state_decorated_structure(structure)
-    except ValueError:
-        comp = structure.composition
-        oxi_transform = OxidationStateDecorationTransformation(
-            comp.oxi_state_guesses(all_oxi_states=all_oxi_states, max_sites=max_sites)[0]
-        )
-        struct = oxi_transform.apply_transformation(structure)
-
-    return struct
-
-
-def get_atomic_props_block_for_formula(formula, oxi=False):
-    comp = Composition(formula)
-    return get_atomic_props_block(comp, oxi)
 
 
 def get_atomic_props_block(composition, oxi=False):
@@ -366,6 +209,17 @@ def round_numbers(cif_str, decimal_places=4):
     cif_string_rounded = re.sub(pattern, round_number, cif_str)
 
     return cif_string_rounded
+
+
+def array_split(arr, num_splits):
+    split_size, remainder = divmod(len(arr), num_splits)
+    splits = []
+    start = 0
+    for i in range(num_splits):
+        end = start + split_size + (i < remainder)
+        splits.append(arr[start:end])
+        start = end
+    return splits
 
 
 class CIFScorer:
