@@ -1,6 +1,6 @@
 """
 Adapted from:
-https://github.com/karpathy/nanoGPT/blob/master/model.py
+https://github.com/karpathy/nanoGPT/blob/eba36e84649f3c6d840a93092cb779a260544d08/model.py
 """
 import math
 from dataclasses import dataclass

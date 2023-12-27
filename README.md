@@ -299,11 +299,11 @@ python bin/train.py --config=my_train.yaml dropout=0.3
   eval_iters_val: int = 200
   eval_only: bool = False  # if True, script exits right after the first eval
   always_save_checkpoint: bool = False  # if True, always save a checkpoint after each eval
-  init_from: str = 'scratch'  # 'scratch' or 'resume'
+  init_from: str = "scratch"  # 'scratch' or 'resume'
   
   # data
   dataset: str = ""  # the path to the folder containing the .bin files with encoded tokens
-  gradient_accumulation_steps: int = 5  # used to simulate larger batch sizes
+  gradient_accumulation_steps: int = 40  # used to simulate larger batch sizes
   batch_size: int = 64  # if gradient_accumulation_steps > 1, this is the micro-batch size
   block_size: int = 2048  # context of up to `block_size` previous characters
   
@@ -335,8 +335,16 @@ python bin/train.py --config=my_train.yaml dropout=0.3
   underrep_p: float = 0.025
   validate: bool = False  # whether to evaluate the model using the validation set
   ```
-  
 </details>
+
+- the dataset dir must contain the following contents:
+-- `train.bin` (required)
+-- `val.bin` (required if `validate` is `True`, else optional)
+-- `starts.pkl` (sorted Python list of CIF start indices, optional)
+-- `starts_val.pkl` (sorted Python list of CIF start indices, optional)
+-- `starts_underrep.pkl` (sorted Python list of CIF start indices, optional)
+
+- in the `out_dir`, models must be/will be stored as a file names `ckpt.pt`
 
 ## Generating Crystal Structures
 
