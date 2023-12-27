@@ -334,7 +334,7 @@ is the only option that is required to be specified by the user.
   device: str = "cuda"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
   dtype: str = "bfloat16"  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
   compile: bool = True  # use PyTorch 2.0 to compile the model to be faster
-  underrep_p: float = 0.025
+  underrep_p: float = 0.0
   validate: bool = False  # whether to evaluate the model using the validation set
   ```
 </details>
