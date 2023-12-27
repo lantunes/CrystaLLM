@@ -276,17 +276,19 @@ python bin/tar_to_pickle.py custom_cifs.tar.gz custom_cifs.pkl.gz
 
 ## Training the Model
 
-TODO
+To train the model, use the `bin/train.py` script. The training script expects the path to a directory containing the 
+tokenized and encoded dataset. The directory is expected to have the following files:
 
-- user .yaml options for training (e.g. `my_train.yaml`, see `comfig/train_example.yaml` for an example user config):
-```shell
-python bin/train.py --config=my_train.yaml
-```
-- default options can be overridden using yaml and CLI options; CLI options take precedence
-```shell
-python bin/train.py --config=my_train.yaml dropout=0.3
-```
-- in this case, the dropout will have a value of 0.3, despite what's in the yaml
+- `train.bin`: binary file containing the encoded training tokens produced during the tokenization step 
+(required)
+- `val.bin`: binary file containing the encoded validation tokens produced during the tokenization step 
+(required if `validate` is `True`, else optional)
+- `starts.pkl`: sorted Python list of CIF start indices for the training set (optional)
+- `starts_val.pkl`: sorted Python list of CIF start indices for the validation set (optional)
+
+The training script uses a set of configuration options that define how training should behave. These configuration 
+options all have default values, except for the `dataset` option, which specifies the path to the training dataset. It 
+is the only option that is required to be specified by the user.
 
 <details>
   <summary>Expand for supported configuration options and their default values</summary>
@@ -337,14 +339,36 @@ python bin/train.py --config=my_train.yaml dropout=0.3
   ```
 </details>
 
-- the dataset dir must contain the following contents:
--- `train.bin` (required)
--- `val.bin` (required if `validate` is `True`, else optional)
--- `starts.pkl` (sorted Python list of CIF start indices, optional)
--- `starts_val.pkl` (sorted Python list of CIF start indices, optional)
--- `starts_underrep.pkl` (sorted Python list of CIF start indices, optional)
+All the other options can be changed by specifying their values in a .yaml file, or as command line arguments when 
+invoking the `bin/train.py` script. _NOTE: When an option occurs both in the .yaml file and as a command line argument, 
+the command line argument will have precedence._
 
-- in the `out_dir`, models must be/will be stored as a file names `ckpt.pt`
+In the following minimal example, we have a directory named `tokens_v1_all`, which contains a file named `train.bin`, 
+which contains all the dataset's encoded tokens, and we start training using the data in that folder:
+```shell
+python bin/train.py dataset=tokens_v1_all
+```
+In the example above, the configuration options (e.g. learning rate, number of training iterations, etc.) will be 
+assigned their default values. If we want to override these options with our own values, we can use a .yaml file: 
+
+```shell
+python bin/train.py --config=my_train.yaml
+```
+where `my_train.yaml` contains all the options to be overriden (including the `dataset` option). 
+
+We can also supply command line arguments, in addition to a .yaml file:
+```shell
+python bin/train.py --config=my_train.yaml dropout=0.3
+```
+In this case, the `dropout` option will have a value of 0.3, regardless of what's in the .yaml file.
+
+See the `config/train_example.yaml` file for a more detailed example. We've also included the configurations used for 
+the large and small models in the `config` directory.
+
+It's also good practice to specify a value for the `out_dir` option, which is the path to the directory where the model
+will be saved. During training, a checkpoint containing the current model is saved to this directory periodically 
+(depending on how training is configured). The checkpoint is a file named `ckpt.pt`, and any existing 
+`ckpt.pt` file in the `out_dir` will be overwritten every time the model is saved during training.
 
 ## Generating Crystal Structures
 

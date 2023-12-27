@@ -120,15 +120,15 @@ if __name__ == "__main__":
     cif_start_indices_val = read_start_indices(
         max_start_index=len(val_data) - C.block_size,
         data_dir=C.dataset,
-        on_condition=C.validate,
         starts_fname="starts_val.pkl",
+        on_condition=C.validate,
     )
 
     cif_start_indices_underrep = read_start_indices(
         max_start_index=len(train_data) - C.block_size,
         data_dir=C.dataset,
-        on_condition=C.underrep_p > 0,
         starts_fname="starts_underrep.pkl",
+        on_condition=C.underrep_p > 0,
         required=True,
     )
 
