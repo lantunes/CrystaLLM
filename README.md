@@ -30,7 +30,7 @@ model definition, training, and inference code in this repository is adapted fro
   - [Post-processing](#post-processing)
   - [Monte Carlo Tree Search Decoding](#monte-carlo-tree-search-decoding)
   - [Using the Pre-trained Model](#using-the-pre-trained-model)
-- [Using the Learned Embeddings](#using-the-learned-embeddings)
+- [Extracting the Learned Embeddings](#extracting-the-learned-embeddings)
 - [The Challenge Set](#the-challenge-set)
 - [Tests](#tests)
 - [Need Help?](#need-help)
@@ -500,9 +500,27 @@ value of `zmq`.
 
 TODO
 
-## Using the Learned Embeddings
+## Extracting the Learned Embeddings
 
-TODO
+To extract the learned atom, digit, and space group embeddings from a trained model, use the 
+`bin/extract_embeddings.py` script:
+
+```shell
+python bin/extract_embeddings.py out/my_model \
+--dataset tokens_v1_all.tar.gz \
+--out my_model.atom_vectors.csv \
+--type atom
+```
+
+In the example above, the `out/my_model` folder contains the model checkpoint file. The dataset .tar.gz file that was 
+used to train the model is also required, as we need the `meta.pkl` file containing the token-to-index mappings. The 
+`my_model.atom_vectors.csv` indicates the name of the .csv file that will contain the embeddings. Finally, the `type` 
+option indicates what type of embedding to extract. Supported values are: `atom`, `digit`, and `spacegroup`.
+
+The extracted embeddings for the small model are made available in this project, in the `resources` folder:
+- `crystallm_v1_small.atom_vectors.csv`
+- `crystallm_v1_small.number_vectors.csv`
+- `crystallm_v1_small.spacegroup_vectors.csv`
 
 ## The Challenge Set
 
