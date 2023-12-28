@@ -547,7 +547,7 @@ python -m unittest discover tests
 
 If you encounter any issues, or have any questions, please feel free to open an issue in this repository.
 
-## Citation
+## Citing CrystaLLM
 
 Please use the following bibtex entry:
 ```
