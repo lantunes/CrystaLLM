@@ -34,7 +34,7 @@ model definition, training, and inference code in this repository is adapted fro
 - [The Challenge Set](#the-challenge-set)
 - [Tests](#tests)
 - [Need Help?](#need-help)
-- [Citation](#citation)
+- [Citing CrystaLLM](#citing-crystallm)
 
 ## Getting Started
 
