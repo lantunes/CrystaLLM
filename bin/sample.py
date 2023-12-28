@@ -9,8 +9,8 @@ from contextlib import nullcontext
 from omegaconf import OmegaConf
 import torch
 
-from crystallm import parse_config
 from crystallm import (
+    parse_config,
     CIFTokenizer,
     GPT,
     GPTConfig,

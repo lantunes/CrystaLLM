@@ -431,7 +431,70 @@ the path to the folder where the processed CIF files should be written. This fol
 
 ### Monte Carlo Tree Search Decoding
 
-TODO
+To perform Monte Carlo Tree Search (MCTS) decoding, use the `bin/mcts.py` script. The path to the folder containing a 
+trained model will need to be provided. Other configuration options are available to tune the behaviour of the 
+algorithm.
+
+<details>
+  <summary>Expand for supported configuration options and their default values</summary>
+
+  ```python
+  out_dir: str = "out"  # path to the folder containing the model checkpoint file
+  temperature: float = 1.0  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
+  start: str = "\n"  # the prompt; can also specify a file, use as: "FILE:prompt.txt"
+  seed: int = 1337
+  device: str = "cuda"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
+  dtype: str = "bfloat16"  # 'float32' or 'bfloat16' or 'float16'
+  compile: bool = False  # use PyTorch 2.0 to compile the model to be faster
+  tree_width: int = 10  # the tree width
+  max_depth: int = 1000  # the maximum depth of the tree
+  c: float = 5.  # the selector constant: c_puct for PUCT, c for UCT, epsilon for greedy
+  num_simulations: int = 200  # the number of simulations to perform during search
+  bond_length_acceptability_cutoff: float = 1.0
+  reward_k: float = 2.0  # the reward constant
+  mcts_out_dir: str = "mcts"  # path to the directory where generated CIF files will be stored
+  scorer: str = "zmq"  # supported values: 'zmq', 'random'
+  scorer_host: str = "localhost"  # required if `scorer` is 'zmq'
+  scorer_port: int = 5555  # required if `scorer` is 'zmq'
+  use_context_sensitive_tree_builder: bool = True
+  top_child_weight_cutoff: float = 0.99
+  selector: str = "puct"  # valid values: 'puct', 'uct', 'greedy'
+  n_space_groups: int = 0
+  bypass_only_child: bool = False
+  n_rollouts: int = 1  # the number of rollouts to perform per simulation
+  ```
+
+</details>
+
+For example:
+```shell
+python bin/mcts.py \
+out_dir=out/my_model \
+device=cuda \
+dtype=float16 \
+start=FILE:out/prompt.txt \
+tree_width=5 \
+max_depth=2000 \
+selector=puct \
+c=1.0 \
+num_simulations=1000 \
+reward_k=2.0 \
+scorer=random \
+top_child_weight_cutoff=0.9999 \
+bypass_only_child=True \
+mcts_out_dir=out/my_mcts_cifs
+```
+In the above example, the trained model checkpoint file exists in the `out/my_model` directory. The prompt is actually
+in a file located at `out/prompt.txt`. The generated (post-processed) CIF files will be placed in the `mcts_out_dir` 
+directory. We could also have placed the configuration options in a .yaml file, as we did for training, and specified 
+its path using the `--config` command line option.
+
+Note that in the example above, the `scorer` configuration option was assigned a value of `random`. This instructs the 
+algorithm to make use of a random scorer, which will assign a random score to each CIF file. The random scorer is 
+intended to be used only for demonstration or debugging purposes, when a true scorer is not available. In practice, a 
+true scorer, which assigns a score based on the quality of the generated CIF, should be used. Support is provided for 
+obtaining the score from another process, via the ZMQ library, and in such a case, the `scorer` would be assigned a 
+value of `zmq`.
 
 ### Using the Pre-trained Model
 

@@ -28,9 +28,21 @@ from ._utils import (
     extract_data_formula,
     remove_atom_props_block,
     array_split,
-    CIFScorer,
 )
 
-from ._zmq_scorer import ZMQScorer
+from ._scorer import (
+    CIFScorer,
+    RandomScorer,
+    ZMQScorer,
+)
 
 from ._configuration import parse_config
+
+from ._mcts import (
+    MCTSSampler,
+    MCTSEvaluator,
+    ContextSensitiveTreeBuilder,
+    PUCTSelector,
+    GreedySelector,
+    UCTSelector,
+)

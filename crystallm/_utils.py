@@ -220,19 +220,3 @@ def array_split(arr, num_splits):
         splits.append(arr[start:end])
         start = end
     return splits
-
-
-class CIFScorer:
-    """
-    An abstract CIF scorer, for external scoring processes.
-    An external scorer provides a heuristic score for completed CIFs.
-    e.g. an external scorer might provide the formation energy of the given CIF
-    """
-    def score(self, cif) -> float:
-        """
-        Returns a score for the CIF. A higher score is better.
-
-        :param cif: the CIF to be scored
-        :return: a float representing the score
-        """
-        pass

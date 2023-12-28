@@ -30,9 +30,8 @@ class LayerNorm(nn.Module):
         """
         Initialize the LayerNorm module.
 
-        Parameters:
-        - ndim (int): dimensionality of the input tensor
-        - bias (bool): whether to add a learnable bias to the output
+        :param ndim: dimensionality of the input tensor
+        :param bias: whether to add a learnable bias to the output
         """
         super().__init__()
         self.weight = nn.Parameter(torch.ones(ndim))
@@ -66,11 +65,8 @@ class CausalSelfAttention(nn.Module):
         Applies causal self-attention to the given tensor,
         with a mask to prevent attention to future positions.
 
-        Parameters:
-        - x (Tensor): tensor of shape (batch size, sequence length, embedding dimension)
-
-        Returns:
-        - Tensor: result of applying the causal self-attention operation
+        :param x: tensor of shape (batch size, sequence length, embedding dimension)
+        :returns: result of applying the causal self-attention operation
         """
         B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
 
@@ -101,11 +97,8 @@ def gelu(x: Tensor) -> Tensor:
     Implements the Gaussian Error Linear Unit (GELU) activation function, as used in the Google BERT and
     OpenAI GPT models. See: "Gaussian Error Linear Units (GELUs)", https://arxiv.org/abs/1606.08415
 
-    Parameters:
-    - x (Tensor): the tensor to which the GELU activation function will be applied
-
-    Returns:
-    - Tensor: the result tensor after applying the GELU activation function,
+    :param x: the tensor to which the GELU activation function will be applied
+    :returns: the result tensor after applying the GELU activation function,
               possessing the same shape as the input tensor
     """
     return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
@@ -120,15 +113,6 @@ class MLP(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x: Tensor) -> Tensor:
-        """
-        Forward pass for the Transformer Block MLP module.
-
-        Parameters:
-        - x (Tensor): input to the MLP
-
-        Returns:
-        - Tensor: output of the MLP
-        """
         x = self.c_fc(x)
         x = gelu(x)
         x = self.c_proj(x)
@@ -150,11 +134,8 @@ class Block(nn.Module):
         Forward pass for the Transformer Block module. A Block module includes causal self-attention,
         layer normalization, and MLP, and residual connections.
 
-        Parameters:
-        - x (Tensor): input to the transformer block
-
-        Returns:
-        - Tensor: output of the transformer block, with the same shape as in the input
+        :param x: input to the transformer block
+        :returns: output of the transformer block, with the same shape as in the input
         """
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
@@ -194,11 +175,8 @@ class GPT(nn.Module):
         by default. The token embeddings are always included, since they are used in the
         final layer due to weight tying.
 
-        Parameters:
-        - non_embedding (bool): whether to subtract the position embeddings (default is True)
-
-        Returns:
-        - int: the number of parameters in the model
+        :param non_embedding: whether to subtract the position embeddings (default is True)
+        :returns: the number of parameters in the model
         """
         n_params = sum(p.numel() for p in self.parameters())
         if non_embedding:
