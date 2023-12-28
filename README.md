@@ -372,6 +372,47 @@ will be saved. During training, a checkpoint containing the current model is sav
 
 ## Generating Crystal Structures
 
+To randomly sample from a trained model, and generate CIF files, use the `bin/sample.py` script. The sampling script 
+expects the path to the folder containing the trained model checkpoint, as well as the prompt, and other configuration 
+options.
+
+<details>
+  <summary>Expand for supported configuration options and their default values</summary>
+
+  ```python
+  out_dir: str = "out"  # the path to the directory containing the trained model
+  start: str = "\n"  # the prompt; can also specify a file, use as: "FILE:prompt.txt"
+  num_samples: int = 2  # number of samples to draw
+  max_new_tokens: int = 3000  # number of tokens generated in each sample
+  temperature: float = 0.8  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
+  top_k: int = 10  # retain only the top_k most likely tokens, clamp others to have 0 probability
+  seed: int = 1337
+  device: str = "cuda"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
+  dtype: str = "bfloat16"  # 'float32' or 'bfloat16' or 'float16'
+  compile: bool = False  # use PyTorch 2.0 to compile the model to be faster
+  ```
+
+</details>
+
+For example:
+```shell
+python bin/sample.py \
+out_dir=out/my_model \
+start=FILE:out/prompt.txt \
+num_samples=2 \
+top_k=10 \
+max_new_tokens=3000 \
+device=cuda
+```
+In the above example, the trained model checkpoint file exists in the `out/my_model` directory. The prompt is actually
+in a file located at `out/prompt.txt`. Alternatively, we could also have placed the configuration options in a .yaml 
+file, as we did for training, and specified its path using the `--config` command line option.
+
+The generated CIF files are sent to the console. Note that the CIF files generated using the `bin/sample.py` script will
+need to be post-processed.
+
+### Post-processing
+
 TODO
 
 ### Using the Pre-trained Model

@@ -22,7 +22,7 @@ from crystallm import (
 
 
 @dataclass
-class OptionDefaults:
+class TrainDefaults:
     out_dir: str = "out"  # the path to the folder where the model checkpoints will be stored
     eval_interval: int = 250  # how often to evaluate against the validation set
     log_interval: int = 1  # how often to print to
@@ -89,7 +89,7 @@ def read_start_indices(
 
 
 if __name__ == "__main__":
-    C = parse_config(OptionDefaults)
+    C = parse_config(TrainDefaults)
 
     print("Using configuration:")
     print(OmegaConf.to_yaml(C))
