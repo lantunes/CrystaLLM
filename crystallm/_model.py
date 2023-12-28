@@ -10,7 +10,7 @@ from torch import Tensor
 import torch.nn as nn
 from torch.nn import functional as F
 
-from crystallm import get_cif_tokenizer
+from crystallm import CIFTokenizer
 
 
 @dataclass
@@ -326,7 +326,7 @@ class GPT(nn.Module):
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
-        tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
+        tokenizer = CIFTokenizer()
         newline_id = tokenizer.token_to_id["\n"]
         prev_id = None
         for _ in range(max_new_tokens):

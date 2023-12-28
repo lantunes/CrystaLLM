@@ -6,7 +6,7 @@ try:
 except ModuleNotFoundError as e:
     print(f"module not found: {e}")
 
-from ._utils import extract_data_formula
+from crystallm import extract_data_formula
 
 
 def bond_length_reasonableness_score(cif_str, tolerance=0.32, h_factor=2.5):
