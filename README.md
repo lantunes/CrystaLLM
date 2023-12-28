@@ -30,8 +30,8 @@ model definition, training, and inference code in this repository is adapted fro
   - [Post-processing](#post-processing)
   - [Monte Carlo Tree Search Decoding](#monte-carlo-tree-search-decoding)
   - [Using the Pre-trained Model](#using-the-pre-trained-model)
-- [The Challenge Set](#the-challenge-set)
 - [Using the Learned Embeddings](#using-the-learned-embeddings)
+- [The Challenge Set](#the-challenge-set)
 - [Tests](#tests)
 - [Need Help?](#need-help)
 - [Citation](#citation)
@@ -437,11 +437,11 @@ TODO
 
 TODO
 
-## The Challenge Set
+## Using the Learned Embeddings
 
 TODO
 
-## Using the Learned Embeddings
+## The Challenge Set
 
 TODO
 
