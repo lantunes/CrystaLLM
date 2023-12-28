@@ -26,9 +26,12 @@ model definition, training, and inference code in this repository is adapted fro
   - [Using Your Own CIF Files](#using-your-own-cif-files)
 - [Training the Model](#training-the-model)
 - [Generating Crystal Structures](#generating-crystal-structures)
-  - [Using the Pre-trained Model](#using-the-pre-trained-model)
+  - [Random Sampling](#random-sampling)
+  - [Post-processing](#post-processing)
   - [Monte Carlo Tree Search Decoding](#monte-carlo-tree-search-decoding)
+  - [Using the Pre-trained Model](#using-the-pre-trained-model)
 - [The Challenge Set](#the-challenge-set)
+- [Using the Learned Embeddings](#using-the-learned-embeddings)
 - [Tests](#tests)
 - [Need Help?](#need-help)
 - [Citation](#citation)
@@ -372,6 +375,8 @@ will be saved. During training, a checkpoint containing the current model is sav
 
 ## Generating Crystal Structures
 
+### Random Sampling
+
 To randomly sample from a trained model, and generate CIF files, use the `bin/sample.py` script. The sampling script 
 expects the path to the folder containing the trained model checkpoint, as well as the prompt, and other configuration 
 options.
@@ -424,17 +429,21 @@ In the above example, the first argument is the path to the folder containing "r
 by the model). The folder must contain one or more files ending with the .cif extension. The second argument contains 
 the path to the folder where the processed CIF files should be written. This folder will be created if it doesn't exist.
 
-### Using the Pre-trained Model
+### Monte Carlo Tree Search Decoding
 
 TODO
 
-### Monte Carlo Tree Search Decoding
+### Using the Pre-trained Model
 
 TODO
 
 ## The Challenge Set
 
-TODO 
+TODO
+
+## Using the Learned Embeddings
+
+TODO
 
 ## Tests
 
