@@ -413,7 +413,16 @@ need to be post-processed.
 
 ### Post-processing
 
-TODO
+The content generated directly by the model needs to be post-processed into a usable CIF file. To post-process the 
+output of the model, use the `bin/postprocess.py` script:
+
+```shell
+python bin/postprocess.py my_raw_cifs my_processed_cifs
+```
+
+In the above example, the first argument is the path to the folder containing "raw" CIF files (i.e. directly generated 
+by the model). The folder must contain one or more files ending with the .cif extension. The second argument contains 
+the path to the folder where the processed CIF files should be written. This folder will be created if it doesn't exist.
 
 ### Using the Pre-trained Model
 
