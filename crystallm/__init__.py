@@ -1,7 +1,4 @@
-from ._tokenizer import (
-    get_cif_tokenizer,
-    CIFTokenizer,
-)
+from ._tokenizer import CIFTokenizer
 
 from ._metrics import (
     bond_length_reasonableness_score,

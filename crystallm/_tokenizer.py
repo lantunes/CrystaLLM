@@ -1,6 +1,5 @@
 import os
 import re
-from abc import abstractmethod
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -84,25 +83,27 @@ class CIFTokenizer:
         for sg in space_groups_sg:
             self._id_to_token[self.token_to_id[sg]] = sg.replace("_sg", "")
 
-    @abstractmethod
-    def atoms(self):
-        pass
+    @staticmethod
+    def atoms():
+        return ATOMS
 
-    @abstractmethod
-    def digits(self):
-        pass
+    @staticmethod
+    def digits():
+        return DIGITS
 
-    @abstractmethod
-    def keywords(self):
-        pass
+    @staticmethod
+    def keywords():
+        kws = list(KEYWORDS)
+        kws.extend(EXTENDED_KEYWORDS)
+        return kws
 
-    @abstractmethod
-    def symbols(self):
-        pass
+    @staticmethod
+    def symbols():
+        return ["x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"]
 
-    @abstractmethod
-    def space_groups(self):
-        pass
+    @staticmethod
+    def space_groups():
+        return SPACE_GROUPS
 
     @property
     def token_to_id(self):
@@ -142,74 +143,3 @@ class CIFTokenizer:
         tokens = [token if token in self._tokens else UNK_TOKEN for token in tokens]
 
         return tokens
-
-
-class CIFSymmTokenizer(CIFTokenizer):
-    def __init__(self):
-        super().__init__()
-
-    def atoms(self):
-        return ATOMS
-
-    def digits(self):
-        return DIGITS
-
-    def keywords(self):
-        return KEYWORDS
-
-    def symbols(self):
-        return ["x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"]
-
-    def space_groups(self):
-        return SPACE_GROUPS
-
-
-class CIFNoSymmTokenizer(CIFTokenizer):
-    def __init__(self):
-        super().__init__()
-
-    def atoms(self):
-        return ATOMS
-
-    def digits(self):
-        return DIGITS
-
-    def keywords(self):
-        return KEYWORDS
-
-    def symbols(self):
-        return ["x", "y", "z", ".", "(", ")", "'", ",", " ", "\n"]
-
-    def space_groups(self):
-        return []
-
-
-class CIFSymmPropsTokenizer(CIFTokenizer):
-    def __init__(self):
-        super().__init__()
-
-    def atoms(self):
-        return ATOMS
-
-    def digits(self):
-        return DIGITS
-
-    def keywords(self):
-        kws = list(KEYWORDS)
-        kws.extend(EXTENDED_KEYWORDS)
-        return kws
-
-    def symbols(self):
-        return ["x", "y", "z", ".", "(", ")", "+", "-", "/", "'", ",", " ", "\n"]
-
-    def space_groups(self):
-        return SPACE_GROUPS
-
-
-def get_cif_tokenizer(symmetrized, includes_props=False):
-    if symmetrized:
-        if includes_props:
-            return CIFSymmPropsTokenizer()
-        return CIFSymmTokenizer()
-    else:
-        return CIFNoSymmTokenizer()

@@ -12,7 +12,7 @@ except ImportError:
     import pickle
 
 from crystallm import (
-    get_cif_tokenizer,
+    CIFTokenizer,
     array_split,
 )
 
@@ -26,8 +26,8 @@ def progress_listener(queue, n):
         pbar.update(message)
 
 
-def tokenize(chunk_of_cifs, symmetrized, includes_props, queue=None):
-    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
+def tokenize(chunk_of_cifs, queue=None):
+    tokenizer = CIFTokenizer()
     tokenized = []
     for cif in tqdm(chunk_of_cifs, disable=queue is not None, desc="tokenizing..."):
         if queue:
@@ -72,9 +72,6 @@ if __name__ == '__main__':
     out_dir = args.out_dir
     workers = args.workers
 
-    symmetrized = True
-    includes_props = True
-
     has_val = len(val_fname) > 0
 
     if not os.path.exists(out_dir):
@@ -106,7 +103,7 @@ if __name__ == '__main__':
     jobs = []
     for i in range(workers):
         chunk = chunks[i]
-        job = pool.apply_async(tokenize, (chunk, symmetrized, includes_props, queue))
+        job = pool.apply_async(tokenize, (chunk, queue))
         jobs.append(job)
 
     tokenized_cifs_train = []
@@ -126,7 +123,7 @@ if __name__ == '__main__':
 
     if has_val:
         # tokenize the validation CIFs
-        tokenized_cifs_val = tokenize(cifs_val, symmetrized, includes_props)
+        tokenized_cifs_val = tokenize(cifs_val)
 
         lens = [len(t) for t in tokenized_cifs_val]
         unk_counts = [t.count("<unk>") for t in tokenized_cifs_val]
@@ -146,7 +143,7 @@ if __name__ == '__main__':
             val_data.extend(t)
 
     print("encoding...")
-    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
+    tokenizer = CIFTokenizer()
     train_ids = tokenizer.encode(train_data)
     print(f"train has {len(train_ids):,} tokens")
     if has_val:

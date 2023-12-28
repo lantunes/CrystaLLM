@@ -9,7 +9,7 @@ from crystallm import (
     GPTConfig,
 )
 
-from crystallm import get_cif_tokenizer
+from crystallm import CIFTokenizer
 
 
 if __name__ == '__main__':
@@ -21,9 +21,8 @@ if __name__ == '__main__':
     model_dir = "../out/cif_model_24c"
     dataset_fname = "../out/mp_oqmd_nomad_cifs_semisymm_Z_props.tar.gz"
     out_fname = "../out/cif_model_24c.atom_vectors.csv"
-    symmetrized, includes_props = True, True
 
-    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
+    tokenizer = CIFTokenizer()
 
     with tarfile.open(dataset_fname, "r:gz") as file:
         file_content_byte = file.extractfile("mp_oqmd_nomad_cifs_semisymm_Z_props/meta.pkl").read()

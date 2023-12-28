@@ -9,7 +9,7 @@ from crystallm import (
     GPTConfig,
 )
 
-from crystallm import get_cif_tokenizer
+from crystallm import CIFTokenizer
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,7 +36,7 @@ device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.aut
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
-tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
+tokenizer = CIFTokenizer()
 encode = tokenizer.encode
 decode = tokenizer.decode
 

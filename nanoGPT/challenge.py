@@ -18,7 +18,7 @@ from mcts_sampler import (
     UCTSelector,
 )
 
-from crystallm import get_cif_tokenizer, ZMQScorer
+from crystallm import CIFTokenizer, ZMQScorer
 
 
 def prepare_model(seed, model_dir, device, compile):
@@ -162,8 +162,6 @@ if __name__ == '__main__':
     parser.add_argument('--model_dir', type=str, required=True, help='Model directory')
     parser.add_argument('--challenge_set', type=str, required=True, help='Path to Challenge set .zip file')
     parser.add_argument('--out_dir', type=str, required=True, help='Directory where the results will be written')
-    parser.add_argument('--symmetrized', action='store_true', default=False, help='Symmetrized flag')
-    parser.add_argument('--includes_props', action='store_true', default=False, help='Props flag')
     parser.add_argument('--top_k', type=int, default=10, help='Top K value')
     parser.add_argument('--temperature', type=float, default=1.0, help='The sampling temperature')
     parser.add_argument('--max_new_tokens', type=int, default=2000, help='Maximum new tokens')
@@ -203,8 +201,6 @@ if __name__ == '__main__':
     model_dir = args.model_dir
     challenge_set_path = args.challenge_set
     out_dir = args.out_dir
-    symmetrized = args.symmetrized
-    includes_props = args.includes_props
     top_k = args.top_k
     temperature = args.temperature
     max_new_tokens = args.max_new_tokens
@@ -234,7 +230,7 @@ if __name__ == '__main__':
     print(f"reading Challenge set from {challenge_set_path} ...")
     challenge_set = read_challenge_set(challenge_set_path)
 
-    tokenizer = get_cif_tokenizer(symmetrized=symmetrized, includes_props=includes_props)
+    tokenizer = CIFTokenizer()
     encode = tokenizer.encode
     decode = tokenizer.decode
 

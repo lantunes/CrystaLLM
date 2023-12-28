@@ -1,12 +1,12 @@
 import unittest
 import inspect
-from lib import get_cif_tokenizer
+from crystallm import CIFTokenizer
 
 
 class TestSomething(unittest.TestCase):
 
     def test_tokenize_cif(self):
-        tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
+        tokenizer = CIFTokenizer()
 
         cif_str = inspect.cleandoc('''
         data_Np1Co3
@@ -47,7 +47,7 @@ class TestSomething(unittest.TestCase):
         ]
 
     def test_tokenize_cif_atoms_like_spacegroup(self):
-        tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
+        tokenizer = CIFTokenizer()
 
         cif_str = inspect.cleandoc('''
         data_Na1P1
@@ -88,7 +88,7 @@ class TestSomething(unittest.TestCase):
         ]
 
     def test_tokenize_cif_space_group(self):
-        tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
+        tokenizer = CIFTokenizer()
 
         cif_str = "_symmetry_space_group_name_H-M    Pm-3m\n"
         tokens = tokenizer.tokenize_cif(cif_str)
@@ -111,7 +111,7 @@ class TestSomething(unittest.TestCase):
         assert tokens == ['_symmetry_space_group_name_H-M', ' ', 'P1_sg', '\n']
 
     def test_encode_decode(self):
-        tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
+        tokenizer = CIFTokenizer()
 
         cif_str = inspect.cleandoc('''
         data_Np1Co3
@@ -148,7 +148,7 @@ class TestSomething(unittest.TestCase):
         assert "".join(decoded) == cif_str
 
     def test_encode_decode_atoms_like_spacegroup(self):
-        tokenizer = get_cif_tokenizer(symmetrized=True, includes_props=True)
+        tokenizer = CIFTokenizer()
 
         cif_str = inspect.cleandoc('''
         data_Na1P1
