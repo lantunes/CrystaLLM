@@ -1,5 +1,6 @@
 import math
 import re
+import pandas as pd
 try:
     from pymatgen.core import Composition
     from pymatgen.io.cif import CifBlock
@@ -220,3 +221,14 @@ def array_split(arr, num_splits):
         splits.append(arr[start:end])
         start = end
     return splits
+
+
+def embeddings_from_csv(embedding_csv):
+    df = pd.read_csv(embedding_csv)
+    elements = list(df["element"])
+    df.drop(["element"], axis=1, inplace=True)
+    embeds_array = df.to_numpy()
+    embedding_data = {
+        elements[i]: embeds_array[i] for i in range(len(embeds_array))
+    }
+    return embedding_data

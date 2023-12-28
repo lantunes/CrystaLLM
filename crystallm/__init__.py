@@ -28,6 +28,7 @@ from ._utils import (
     extract_data_formula,
     remove_atom_props_block,
     array_split,
+    embeddings_from_csv,
 )
 
 from ._scorer import (

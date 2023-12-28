@@ -522,6 +522,15 @@ The extracted embeddings for the small model are made available in this project,
 - `crystallm_v1_small.number_vectors.csv`
 - `crystallm_v1_small.spacegroup_vectors.csv`
 
+To read the embeddings from the .csv file:
+
+```python
+from crystallm import embeddings_from_csv
+
+embeddings = embeddings_from_csv("./my_model.atom_vectors.csv")
+```
+The `embeddings` is a Python dictionary where a key is a token, and the value is a NumPy array.
+
 ## The Challenge Set
 
 TODO
