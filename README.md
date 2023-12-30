@@ -494,7 +494,8 @@ algorithm to make use of a random scorer, which will assign a random score to ea
 intended to be used only for demonstration or debugging purposes, when a true scorer is not available. In practice, a 
 true scorer, which assigns a score based on the quality of the generated CIF, should be used. Support is provided for 
 obtaining the score from another process, via the ZMQ library, and in such a case, the `scorer` would be assigned a 
-value of `zmq`.
+value of `zmq`. See [this script](resources/alignn_zmq_example.py) for an example of setting up 
+[ALIGNN](https://github.com/usnistgov/alignn) to listen for and respond to prediction requests using ZMQ.
 
 ### Using the Pre-trained Model
 
