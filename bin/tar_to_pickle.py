@@ -1,3 +1,4 @@
+import os
 import tarfile
 import argparse
 import pickle
@@ -13,7 +14,8 @@ def load_data_from_tar(tar_gz_filename):
             f = tar.extractfile(member)
             if f is not None:
                 content = f.read().decode("utf-8")
-                cif_id = member.name.replace(".cif", "")
+                filename = os.path.basename(member.name)
+                cif_id = filename.replace(".cif", "")
                 cif_data.append((cif_id, content))
     return cif_data
 

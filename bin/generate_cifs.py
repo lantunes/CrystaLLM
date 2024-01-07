@@ -87,7 +87,8 @@ if __name__ == "__main__":
             f = tar.extractfile(member)
             if f is not None:
                 content = f.read().decode("utf-8")
-                cif_id = member.name.replace(".txt", "")
+                filename = os.path.basename(member.name)
+                cif_id = filename.replace(".txt", "")
                 prompts.append((cif_id, content))
 
     generated = []
