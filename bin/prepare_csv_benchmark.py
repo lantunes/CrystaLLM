@@ -29,7 +29,7 @@ This script is meant to be used to prepare the CDVAE benchmark
 https://github.com/jiaor17/DiffCSP/tree/main/data) for the 
 CrystaLLM pre-processing step.
 """
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare benchmark CIF files and save to a tar.gz file.")
     parser.add_argument("input_csv", help="Path to the .csv containing the benchmark CIF files.")
     parser.add_argument("output_tar_gz", help="Path to the output tar.gz file")

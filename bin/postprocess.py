@@ -20,7 +20,7 @@ def postprocess(cif: str) -> str:
     return cif
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Post-process CIF files.")
     parser.add_argument("name", type=str,
                         help="Path to the directory containing the raw CIF files to be post-processed.")

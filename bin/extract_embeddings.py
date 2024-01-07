@@ -13,7 +13,7 @@ from crystallm import (
 )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract learned embeddings.")
     parser.add_argument("name", type=str, required=True,
                         help="Path to the folder containing the model checkpoint file.")

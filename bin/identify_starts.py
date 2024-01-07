@@ -19,7 +19,7 @@ def get_underrepresented_set(underrepresented_fname):
     return underrepresented_set
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Identify start token indices.")
     parser.add_argument("--dataset_fname", type=str, required=True,
                         help="Path to the tokenized dataset file (.tar.gz).")

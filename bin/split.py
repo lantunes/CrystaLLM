@@ -4,7 +4,7 @@ import argparse
 from sklearn.model_selection import train_test_split
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Split CIF data into train, validation, and test sets.")
     parser.add_argument("name", type=str,
                         help="Path to the file with the CIFs to be split. It is expected that the file "

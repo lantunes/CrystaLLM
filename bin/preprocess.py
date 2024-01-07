@@ -59,7 +59,7 @@ def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
     result_queue.put(augmented_cifs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pre-process CIF files.")
     parser.add_argument("name", type=str,
                         help="Path to the file with the CIFs to be pre-processed. It is expected that the file "

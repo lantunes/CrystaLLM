@@ -51,7 +51,7 @@ def preprocess(cifs_raw):
     return cifs
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tokenize CIF files.")
     parser.add_argument("--train_fname", type=str, required=True,
                         help="Path to the file with the training set CIFs to be tokenized. It is expected that "

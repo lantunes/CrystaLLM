@@ -17,7 +17,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deduplicate CIF files.")
     parser.add_argument("name", type=str,
                         help="Path to the file with the CIFs to be deduplicated. It is expected that the file "

@@ -48,7 +48,7 @@ class MCTSDefaults:
     n_rollouts: int = 1  # the number of rollouts to perform per simulation
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     C = parse_config(MCTSDefaults)
 
     print("Using configuration:")

@@ -31,7 +31,7 @@ class SampleDefaults:
     compile: bool = False  # use PyTorch 2.0 to compile the model to be faster
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     C = parse_config(SampleDefaults)
 
     print("Using configuration:")

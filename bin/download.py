@@ -23,7 +23,7 @@ def get_out_path(out_dir, url):
     return os.path.join(out_dir, fname)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("name", type=str,
                         help=f"The name of the file to download.")

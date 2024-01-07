@@ -25,7 +25,7 @@ with prompts for each CIF. Note that the CIFs must be the result of
 the pre-processing step (i.e. the output of the `bin/preprocess.py` 
 script).
 """
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Construct prompts from the given pre-processed CIFs.")
     parser.add_argument("name", type=str,
                         help="Path to the file with the pre-processed CIFs from which prompts will be extracted. "
