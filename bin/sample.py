@@ -71,7 +71,7 @@ if __name__ == "__main__":
         with open(prompt[5:], "r", encoding="utf-8") as f:
             prompt = f.read()
     start_ids = encode(tokenizer.tokenize_cif(prompt))
-    x = (torch.tensor(start_ids, dtype=torch.long, device=C.device)[None, ...])
+    x = torch.tensor(start_ids, dtype=torch.long, device=C.device)[None, ...]
 
     # run generation
     with torch.no_grad():
