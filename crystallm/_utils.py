@@ -23,6 +23,11 @@ def get_unit_cell_volume(a, b, c, alpha_deg, beta_deg, gamma_deg):
     return volume
 
 
+def get_atomic_props_block_for_formula(formula, oxi=False):
+    comp = Composition(formula)
+    return get_atomic_props_block(comp, oxi)
+
+
 def get_atomic_props_block(composition, oxi=False):
     noble_vdw_radii = {
         "He": 1.40,

@@ -25,8 +25,9 @@ def process_cif_files(input_csv, output_tar_gz):
 
 """
 This script is meant to be used to prepare the CDVAE benchmark 
-.csv files (https://github.com/txie-93/cdvae/tree/main/data) for 
-the CrystaLLM pre-processing step.
+.csv files (https://github.com/txie-93/cdvae/tree/main/data and 
+https://github.com/jiaor17/DiffCSP/tree/main/data) for the 
+CrystaLLM pre-processing step.
 """
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Prepare benchmark CIF files and save to a tar.gz file.")
