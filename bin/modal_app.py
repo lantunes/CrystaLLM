@@ -280,4 +280,4 @@ def main():
     inp = {"comp": "CuSeTeZn"}
 
     model = CrystaLLMModel()
-    model.generate.call(inputs=inp)
+    model.generate.remote(inputs=inp)
