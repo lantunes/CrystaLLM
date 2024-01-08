@@ -183,13 +183,13 @@ def read_true_cifs(input_path):
     return true_cifs
 
 
-def get_structs(id_to_gen_cifs, id_to_true_cifs):
+def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens):
     gen_structs = []
     true_structs = []
     for id, cifs in tqdm(id_to_gen_cifs.items(), desc="converting CIFs to Structures..."):
         if id not in id_to_true_cifs:
             raise Exception(f"could not find ID `{id}` in true CIFs")
-        gen_structs.append([Structure.from_str(cif, fmt="cif") for cif in cifs])
+        gen_structs.append([Structure.from_str(cif, fmt="cif") for cif in cifs[:n_gens]])
         true_structs.append(Structure.from_str(id_to_true_cifs[id], fmt="cif"))
     return gen_structs, true_structs
 
@@ -213,13 +213,21 @@ if __name__ == "__main__":
     true_cifs_path = args.true_cifs
     n_gens = args.n_gens
 
+    if n_gens == 0:
+        n_gens = None
+        print("using all available generations...")
+    else:
+        if n_gens < 0:
+            raise Exception(f"invalid value for n_gens: {n_gens}")
+        print(f"using a maximum of {n_gens} generation(s) per compound...")
+
     # defaults taken from DiffCSP
     struct_matcher = StructureMatcher(stol=0.5, angle_tol=10, ltol=0.3)
 
     id_to_gen_cifs = read_generated_cifs(gen_cifs_path)
     id_to_true_cifs = read_true_cifs(true_cifs_path)
 
-    gen_structs, true_structs = get_structs(id_to_gen_cifs, id_to_true_cifs)
+    gen_structs, true_structs = get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens)
 
     metrics = get_match_rate_and_rms(gen_structs, true_structs, struct_matcher)
 
