@@ -1,9 +1,12 @@
+import sys
+sys.path.append(".")
 import os
 import tarfile
 import pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
+
 from crystallm import (
     extract_data_formula,
     extract_space_group_symbol,

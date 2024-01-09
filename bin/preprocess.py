@@ -1,8 +1,11 @@
+import sys
+sys.path.append(".")
 import argparse
 import gzip
 from tqdm import tqdm
 import multiprocessing as mp
 from queue import Empty
+
 from crystallm import (
     semisymmetrize_cif,
     replace_data_formula_with_nonreduced_formula,
