@@ -13,37 +13,13 @@ from smact.screening import pauling_test
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
 
-#  from https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/diffcsp/common/data_utils.py
-chemical_symbols = [
-    # 0
-    'X',
-    # 1
-    'H', 'He',
-    # 2
-    'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
-    # 3
-    'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar',
-    # 4
-    'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
-    'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr',
-    # 5
-    'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
-    'In', 'Sn', 'Sb', 'Te', 'I', 'Xe',
-    # 6
-    'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy',
-    'Ho', 'Er', 'Tm', 'Yb', 'Lu',
-    'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi',
-    'Po', 'At', 'Rn',
-    # 7
-    'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk',
-    'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr',
-    'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc',
-    'Lv', 'Ts', 'Og']
+import warnings
+warnings.filterwarnings("ignore")
 
 
 # from https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
 def smact_validity(comp, count, use_pauling_test=True, include_alloys=True):
-    elem_symbols = tuple([chemical_symbols[elem] for elem in comp])
+    elem_symbols = tuple(comp)
     space = smact.element_dictionary(elem_symbols)
     smact_elems = [e[1] for e in space.items()]
     electronegs = [e.pauling_eneg for e in smact_elems]
@@ -99,7 +75,7 @@ def is_valid(struct):
     elems, counts = list(zip(*composition))
     counts = np.array(counts)
     counts = counts / np.gcd.reduce(counts)
-    comps = tuple(counts.astype('int').tolist())
+    comps = tuple(counts.astype("int").tolist())
 
     comp_valid = smact_validity(elems, comps)
     struct_valid = structure_validity(struct)
@@ -113,7 +89,7 @@ def get_match_rate_and_rms(gen_structs, true_structs, matcher):
         if not is_pred_valid:
             return None
         try:
-            rms_dist = matcher.get_rms_dist(pred.structure, gt.structure)
+            rms_dist = matcher.get_rms_dist(pred, gt)
             rms_dist = None if rms_dist is None else rms_dist[0]
             return rms_dist
         except Exception:
@@ -123,10 +99,13 @@ def get_match_rate_and_rms(gen_structs, true_structs, matcher):
     for i in tqdm(range(len(gen_structs)), desc="comparing structures..."):
         tmp_rms_dists = []
         for j in range(len(gen_structs[i])):
-            struct_valid = is_valid(gen_structs[i][j])
-            rmsd = process_one(gen_structs[i][j], true_structs[i], struct_valid)
-            if rmsd is not None:
-                tmp_rms_dists.append(rmsd)
+            try:
+                struct_valid = is_valid(gen_structs[i][j])
+                rmsd = process_one(gen_structs[i][j], true_structs[i], struct_valid)
+                if rmsd is not None:
+                    tmp_rms_dists.append(rmsd)
+            except Exception:
+                pass
         if len(tmp_rms_dists) == 0:
             rms_dists.append(None)
         else:
@@ -189,7 +168,15 @@ def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens):
     for id, cifs in tqdm(id_to_gen_cifs.items(), desc="converting CIFs to Structures..."):
         if id not in id_to_true_cifs:
             raise Exception(f"could not find ID `{id}` in true CIFs")
-        gen_structs.append([Structure.from_str(cif, fmt="cif") for cif in cifs[:n_gens]])
+
+        structs = []
+        for cif in cifs[:n_gens]:
+            try:
+                structs.append(Structure.from_str(cif, fmt="cif"))
+            except Exception:
+                pass
+        gen_structs.append(structs)
+
         true_structs.append(Structure.from_str(id_to_true_cifs[id], fmt="cif"))
     return gen_structs, true_structs
 
@@ -204,14 +191,14 @@ if __name__ == "__main__":
                         help="Path to the .tar.gz file containing the generated CIF files.")
     parser.add_argument("true_cifs",
                         help="Path to the .tar.gz file containing the true CIF files.")
-    parser.add_argument("--n_gens", required=False, default=0,
+    parser.add_argument("--num-gens", required=False, default=0, type=int,
                         help="The maximum number of generations to use per structure. Default is 0, which means "
                              "use all of the available generations.")
     args = parser.parse_args()
 
     gen_cifs_path = args.gen_cifs
     true_cifs_path = args.true_cifs
-    n_gens = args.n_gens
+    n_gens = args.num_gens
 
     if n_gens == 0:
         n_gens = None

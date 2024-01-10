@@ -12,14 +12,18 @@ from crystallm import (
 )
 
 
-def postprocess(cif: str) -> str:
-    # replace the symmetry operators with the correct operators
-    space_group_symbol = extract_space_group_symbol(cif)
-    if space_group_symbol is not None and space_group_symbol != "P 1":
-        cif = replace_symmetry_operators(cif, space_group_symbol)
+def postprocess(cif: str, fname: str) -> str:
+    try:
+        # replace the symmetry operators with the correct operators
+        space_group_symbol = extract_space_group_symbol(cif)
+        if space_group_symbol is not None and space_group_symbol != "P 1":
+            cif = replace_symmetry_operators(cif, space_group_symbol)
 
-    # remove atom props
-    cif = remove_atom_props_block(cif)
+        # remove atom props
+        cif = remove_atom_props_block(cif)
+    except Exception as e:
+        cif = "# WARNING: CrystaLLM could not post-process this file properly!\n" + cif
+        print(f"error post-processing CIF file '{fname}': {e}")
 
     return cif
 
@@ -29,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("name", type=str,
                         help="Path to the directory or .tar.gz file containing the "
                              "raw CIF files to be post-processed.")
-    parser.add_argument("out", type=str, required=True,
+    parser.add_argument("out", type=str,
                         help="Path to the directory or .tar.gz file where the "
                              "post-processed CIF files should be written")
 
@@ -44,7 +48,7 @@ if __name__ == "__main__":
                 if member.isfile() and member.name.endswith(".cif"):
                     file = tar.extractfile(member)
                     cif_str = file.read().decode()
-                    processed_cif = postprocess(cif_str)
+                    processed_cif = postprocess(cif_str, member.name)
 
                     processed_file = io.BytesIO(processed_cif.encode())
                     tarinfo = tarfile.TarInfo(name=member.name)
@@ -62,7 +66,7 @@ if __name__ == "__main__":
                 file_path = os.path.join(input_path, filename)
                 with open(file_path, "r") as file:
                     cif_str = file.read()
-                    processed_cif = postprocess(cif_str)
+                    processed_cif = postprocess(cif_str, filename)
 
                 output_file_path = os.path.join(output_path, filename)
                 with open(output_file_path, "w") as file:

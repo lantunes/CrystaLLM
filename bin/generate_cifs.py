@@ -22,30 +22,30 @@ corresponding CIF file for each prompt.
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate CIFs from the given prompts.")
 
-    parser.add_argument("--model_dir", type=str, required=True,
+    parser.add_argument("--model", type=str, required=True,
                         help="Path to the directory containing the trained model checkpoint file.")
-    parser.add_argument("--prompts_file", type=str, required=True,
+    parser.add_argument("--prompts", type=str, required=True,
                         help="Path to the .tar.gz file containing the prompt .txt files.")
-    parser.add_argument("--out_file", type=str, required=True,
+    parser.add_argument("--out", type=str, required=True,
                         help="Path to the gzipped tarball where the generated CIF files will be stored. "
                              "It is recommended that the filename end in `.tar.gz`.")
-    parser.add_argument("--top_k", type=int, default=10,
+    parser.add_argument("--top-k", type=int, default=10,
                         help="The top-k value to use during sampling.")
-    parser.add_argument("--max_new_tokens", type=int, default=3000,
+    parser.add_argument("--max-new-tokens", type=int, default=3000,
                         help="The maximum number of tokens to generate per CIF.")
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="The device to use.")
     parser.add_argument("--temperature", type=float, default=1.0, help="The sampling temperature.")
     parser.add_argument("--seed", type=int, default=1337, help="The random seed.")
     parser.add_argument("--dtype", type=str, default="bfloat16", choices=["float32", "bfloat16", "float16"],
                         help="The datatype to use.")
-    parser.add_argument("--num_gens", type=int, default=1,
+    parser.add_argument("--num-gens", type=int, default=1,
                         help="The number of times to generate for each CIF.")
 
     args = parser.parse_args()
 
-    model_dir = args.model_dir
-    prompts_file = args.prompts_file
-    out_file = args.out_file
+    model_dir = args.model
+    prompts_file = args.prompts
+    out_file = args.out
     top_k = args.top_k
     max_new_tokens = args.max_new_tokens
     device = args.device
