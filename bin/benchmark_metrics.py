@@ -2,6 +2,7 @@ import os
 import argparse
 from collections import Counter
 import tarfile
+import re
 
 import numpy as np
 import itertools
@@ -162,6 +163,27 @@ def read_true_cifs(input_path):
     return true_cifs
 
 
+def is_sensible(id, cif_string):
+    cell_length_pattern = re.compile(r"_cell_length_[abc]\s+([\d\.]+)")
+    cell_angle_pattern = re.compile(r"_cell_angle_(alpha|beta|gamma)\s+([\d\.]+)")
+
+    cell_lengths = cell_length_pattern.findall(cif_string)
+    for length_str in cell_lengths:
+        length = float(length_str)
+        if length < 0.5 or length > 1000:
+            print(f"WARNING: nonsensical cell length found in CIF with ID '{id}': '{length_str}'")
+            return False
+
+    cell_angles = cell_angle_pattern.findall(cif_string)
+    for _, angle_str in cell_angles:
+        angle = float(angle_str)
+        if angle < 10 or angle > 170:
+            print(f"WARNING: nonsensical cell angle found in CIF with ID '{id}': '{angle_str}'")
+            return False
+
+    return True
+
+
 def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens):
     gen_structs = []
     true_structs = []
@@ -172,6 +194,8 @@ def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens):
         structs = []
         for cif in cifs[:n_gens]:
             try:
+                if not is_sensible(id, cif):
+                    continue
                 structs.append(Structure.from_str(cif, fmt="cif"))
             except Exception:
                 pass
