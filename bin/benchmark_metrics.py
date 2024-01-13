@@ -163,21 +163,21 @@ def read_true_cifs(input_path):
     return true_cifs
 
 
-def is_sensible(id, cif_string):
+def is_sensible(id, cif_string, length_lo=0.5, length_hi=1000, angle_lo=10, angle_hi=170):
     cell_length_pattern = re.compile(r"_cell_length_[abc]\s+([\d\.]+)")
     cell_angle_pattern = re.compile(r"_cell_angle_(alpha|beta|gamma)\s+([\d\.]+)")
 
     cell_lengths = cell_length_pattern.findall(cif_string)
     for length_str in cell_lengths:
         length = float(length_str)
-        if length < 0.5 or length > 1000:
+        if length < length_lo or length > length_hi:
             print(f"WARNING: nonsensical cell length found in CIF with ID '{id}': '{length_str}'")
             return False
 
     cell_angles = cell_angle_pattern.findall(cif_string)
     for _, angle_str in cell_angles:
         angle = float(angle_str)
-        if angle < 10 or angle > 170:
+        if angle < angle_lo or angle > angle_hi:
             print(f"WARNING: nonsensical cell angle found in CIF with ID '{id}': '{angle_str}'")
             return False
 
