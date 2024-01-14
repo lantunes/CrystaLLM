@@ -5,6 +5,9 @@ import argparse
 from pymatgen.io.cif import CifWriter, Structure
 from tqdm import tqdm
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def process_cif_files(input_dir, output_tar_gz):
     with tarfile.open(output_tar_gz, "w:gz") as tar:
