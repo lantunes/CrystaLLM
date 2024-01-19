@@ -120,7 +120,7 @@ if __name__ == "__main__":
     )
 
     cif_start_indices_val = read_start_indices(
-        max_start_index=len(val_data) - C.block_size,
+        max_start_index=(len(val_data) - C.block_size) if C.validate else -1,
         data_dir=C.dataset,
         starts_fname="starts_val.pkl",
         on_condition=C.validate,
