@@ -72,7 +72,7 @@ poetry install
 
 This command reads the `pyproject.toml` file, and installs all the dependencies in the virtual environment.
 
-_NOTE: You may need to perform extra, or alternate, steps to install PyTorch on your particular system. See the 
+_NOTE: You may need to perform extra, or alternate steps to install PyTorch on your particular system. See the 
 [PyTorch documentation](https://pytorch.org/get-started/locally/) for more information._
 
 ## Obtaining the Training Data
