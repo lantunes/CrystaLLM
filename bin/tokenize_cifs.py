@@ -99,7 +99,7 @@ if __name__ == "__main__":
     chunks = array_split(cifs_train, workers)
     manager = mp.Manager()
     queue = manager.Queue()
-    pool = mp.Pool(workers)
+    pool = mp.Pool(workers + 1)  # add an extra worker for the watcher
     watcher = pool.apply_async(progress_listener, (queue, len(cifs_train),))
 
     jobs = []

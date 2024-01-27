@@ -141,9 +141,9 @@ if __name__ == "__main__":
         if split == "train":
             if C.underrep_p is not None and np.random.random() < C.underrep_p:
                 ix = cif_start_indices_underrep[torch.randperm(len(cif_start_indices_underrep))[:C.batch_size]]
-            elif cif_start_indices:
+            elif cif_start_indices is not None:
                 ix = cif_start_indices[torch.randperm(len(cif_start_indices))[:C.batch_size]]
-        elif cif_start_indices_val:
+        elif cif_start_indices_val is not None:
             ix = cif_start_indices_val[torch.randperm(len(cif_start_indices_val))[:C.batch_size]]
 
         x = torch.stack([torch.from_numpy((data[i:i + C.block_size]).astype(np.int64)) for i in ix])
