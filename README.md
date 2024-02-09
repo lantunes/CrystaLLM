@@ -29,7 +29,7 @@ model definition, training, and inference code in this repository is adapted fro
   - [Random Sampling](#random-sampling)
   - [Post-processing](#post-processing)
   - [Monte Carlo Tree Search Decoding](#monte-carlo-tree-search-decoding)
-  - [Using the Pre-trained Model](#using-the-pre-trained-model)
+  - [Using a Pre-trained Model](#using-a-pre-trained-model)
 - [Extracting the Learned Embeddings](#extracting-the-learned-embeddings)
 - [The Challenge Set](#the-challenge-set)
 - [Tests](#tests)
@@ -500,9 +500,21 @@ obtaining the score from another process, via the ZMQ library, and in such a cas
 value of `zmq`. See [this script](resources/alignn_zmq_example.py) for an example of setting up 
 [ALIGNN](https://github.com/usnistgov/alignn) to listen for and respond to prediction requests using ZMQ.
 
-### Using the Pre-trained Model
+### Using a Pre-trained Model
 
-TODO
+To use a pre-trained model, first download it:
+```shell
+python bin/download.py crystallm_v1_small.tar.gz
+```
+Then, decompress and extract the file:
+```shell
+tar xvf crystallm_v1_small.tar.gz
+```
+This will result in a folder named `crystallm_v1_small` containing a `ckpt.pt` file. Indicate the `crystallm_v1_small` 
+directory when using the `bin/sample.py` script, for example.
+
+The [config](config/) folder in this project contains a number of model configuration .yaml files. A corresponding 
+.tar.gz model file exists for each .yaml file in that directory that begins with _crystallm__, which can be downloaded.
 
 ## Extracting the Learned Embeddings
 
