@@ -549,7 +549,14 @@ The `embeddings` is a Python dictionary where a key is a token, and the value is
 
 ## The Challenge Set
 
-TODO
+The challenge set can be downloaded:
+```shell
+python bin/download.py challenge_set_v1.zip
+```
+The .zip file contains a separate folder for each of the compounds in the challenge set. Each folder contains 3 files:
+the compound's original CIF file, a .txt file containing the prompt for the compound without the space group, and a 
+.txt file containing the prompt for the compound with the space group. A `properties.csv` file is also present which
+lists various physical properties for the compounds in the set.
 
 ## Tests
 
