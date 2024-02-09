@@ -1,4 +1,4 @@
-out_dir: 'out/cif_model'
+out_dir: 'out/crystallm_carbon_24_small'
 eval_interval: 250  # how often to evaluate against the validation set
 eval_iters_train: 200
 log_interval: 1  # how often to print to the console (1 = every iteration)
@@ -7,9 +7,10 @@ log_interval: 1  # how often to print to the console (1 = every iteration)
 always_save_checkpoint: True
 
 # whether to validate with a validation set
-validate: False
+validate: True
 
-dataset: 'out/tokens_v1_all'
+dataset: 'out/tokens_carbon_24'
+gradient_accumulation_steps: 2
 batch_size: 32
 block_size: 1024
 
@@ -19,8 +20,8 @@ n_embd: 512
 dropout: 0.1
 
 learning_rate: 1e-3
-max_iters: 100000
-lr_decay_iters: 100000
+max_iters: 8000
+lr_decay_iters: 8000
 min_lr: 1e-4
 beta2: 0.99
 
