@@ -163,7 +163,7 @@ def read_true_cifs(input_path):
     return true_cifs
 
 
-def is_sensible(id, cif_string, length_lo=0.5, length_hi=1000, angle_lo=10, angle_hi=170):
+def is_sensible(id, cif_string, length_lo=0.5, length_hi=1000, angle_lo=10, angle_hi=170, verbose=False):
     cell_length_pattern = re.compile(r"_cell_length_[abc]\s+([\d\.]+)")
     cell_angle_pattern = re.compile(r"_cell_angle_(alpha|beta|gamma)\s+([\d\.]+)")
 
@@ -171,20 +171,22 @@ def is_sensible(id, cif_string, length_lo=0.5, length_hi=1000, angle_lo=10, angl
     for length_str in cell_lengths:
         length = float(length_str)
         if length < length_lo or length > length_hi:
-            print(f"WARNING: nonsensical cell length found in CIF with ID '{id}': '{length_str}'")
+            if verbose:
+                print(f"WARNING: nonsensical cell length found in CIF with ID '{id}': '{length_str}'")
             return False
 
     cell_angles = cell_angle_pattern.findall(cif_string)
     for _, angle_str in cell_angles:
         angle = float(angle_str)
         if angle < angle_lo or angle > angle_hi:
-            print(f"WARNING: nonsensical cell angle found in CIF with ID '{id}': '{angle_str}'")
+            if verbose:
+                print(f"WARNING: nonsensical cell angle found in CIF with ID '{id}': '{angle_str}'")
             return False
 
     return True
 
 
-def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens):
+def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, verbose):
     gen_structs = []
     true_structs = []
     for id, cifs in tqdm(id_to_gen_cifs.items(), desc="converting CIFs to Structures..."):
@@ -194,7 +196,7 @@ def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens):
         structs = []
         for cif in cifs[:n_gens]:
             try:
-                if not is_sensible(id, cif):
+                if not is_sensible(id, cif, verbose=verbose):
                     continue
                 structs.append(Structure.from_str(cif, fmt="cif"))
             except Exception:
@@ -218,11 +220,14 @@ if __name__ == "__main__":
     parser.add_argument("--num-gens", required=False, default=0, type=int,
                         help="The maximum number of generations to use per structure. Default is 0, which means "
                              "use all of the available generations.")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Any warnings will be printed to the console if this flag is included.")
     args = parser.parse_args()
 
     gen_cifs_path = args.gen_cifs
     true_cifs_path = args.true_cifs
     n_gens = args.num_gens
+    verbose = args.verbose
 
     if n_gens == 0:
         n_gens = None
@@ -238,7 +243,7 @@ if __name__ == "__main__":
     id_to_gen_cifs = read_generated_cifs(gen_cifs_path)
     id_to_true_cifs = read_true_cifs(true_cifs_path)
 
-    gen_structs, true_structs = get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens)
+    gen_structs, true_structs = get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, verbose)
 
     metrics = get_match_rate_and_rms(gen_structs, true_structs, struct_matcher)
 

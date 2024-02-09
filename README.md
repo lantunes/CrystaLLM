@@ -32,6 +32,7 @@ model definition, training, and inference code in this repository is adapted fro
   - [Using a Pre-trained Model](#using-a-pre-trained-model)
 - [Extracting the Learned Embeddings](#extracting-the-learned-embeddings)
 - [The Challenge Set](#the-challenge-set)
+- [Benchmarking](#benchmarking)
 - [Tests](#tests)
 - [Need Help?](#need-help)
 - [Citing CrystaLLM](#citing-crystallm)
@@ -557,6 +558,11 @@ The .zip file contains a separate folder for each of the compounds in the challe
 the compound's original CIF file, a .txt file containing the prompt for the compound without the space group, and a 
 .txt file containing the prompt for the compound with the space group. A `properties.csv` file is also present which
 lists various physical properties for the compounds in the set.
+
+## Benchmarking
+
+CrystaLLM has been evaluated on the Perov-5, Carbon-24, MP-20 and MPTS-52 benchmarks. To reproduce the benchmark 
+evaluation experiments, see [this document](BENCHMARKING.md).
 
 ## Tests
 
