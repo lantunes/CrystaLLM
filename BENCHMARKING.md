@@ -35,9 +35,9 @@ python bin/tar_to_pickle.py perov_5_test_orig.tar.gz perov_5_test_orig.pkl.gz
 
 Pre-process the benchmark CIF files:
 ```shell
-python bin/preprocess.py perov_5_train_orig.pkl.gz --out perov_5_train.pkl.gz --workers 4
-python bin/preprocess.py perov_5_val_orig.pkl.gz --out perov_5_val.pkl.gz --workers 4
-python bin/preprocess.py perov_5_test_orig.pkl.gz --out perov_5_test.pkl.gz --workers 4
+python bin/preprocess.py perov_5_train_orig.pkl.gz --out perov_5_train_prep.pkl.gz --workers 4
+python bin/preprocess.py perov_5_val_orig.pkl.gz --out perov_5_val_prep.pkl.gz --workers 4
+python bin/preprocess.py perov_5_test_orig.pkl.gz --out perov_5_test_prep.pkl.gz --workers 4
 ```
 
 ### 2. Tokenize the pre-processed CIF files
@@ -45,8 +45,8 @@ python bin/preprocess.py perov_5_test_orig.pkl.gz --out perov_5_test.pkl.gz --wo
 Tokenize the benchmark training and validation sets:
 ```shell
 python bin/tokenize_cifs.py \
---train_fname perov_5_train.pkl.gz \
---val_fname perov_5_val.pkl.gz \
+--train_fname perov_5_train_prep.pkl.gz \
+--val_fname perov_5_val_prep.pkl.gz \
 --out_dir tokens_perov_5/ \
 --workers 4
 ```
@@ -79,25 +79,19 @@ python bin/generate_cifs.py \
 
 Post-process the generated CIF files:
 ```shell
-python bin/postprocess.py \
-gen_perov_5_small_raw.tar.gz \
-gen_perov_5_small.tar.gz
+python bin/postprocess.py gen_perov_5_small_raw.tar.gz gen_perov_5_small.tar.gz
 ```
 
 ### 6. Compute the benchmark metrics
 
 To compute the benchmark metrics using all available generations:
 ```shell
-python bin/benchmark_metrics.py \
-gen_perov_5_small.tar.gz \
-perov_5_test_orig.tar.gz
+python bin/benchmark_metrics.py gen_perov_5_small.tar.gz perov_5_test_orig.tar.gz
 ```
 
 To compute the benchmark metrics for the first generation attempt only (i.e. the _n=1_ case):
 ```shell
-python bin/benchmark_metrics.py \
-gen_perov_5_small.tar.gz \
-perov_5_test_orig.tar.gz --num-gens 1
+python bin/benchmark_metrics.py gen_perov_5_small.tar.gz perov_5_test_orig.tar.gz --num-gens 1
 ```
 
 The `benchmark_metrics.py` script will process the given collection of CIF files, and compare them to the original CIF 

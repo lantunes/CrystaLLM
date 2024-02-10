@@ -5,7 +5,7 @@ from tqdm import tqdm
 import requests
 
 
-STORAGE_URL = "https://crystallm-data.s3.amazonaws.com"
+STORAGE_URL = "https://zenodo.org/records/10642388/files"
 
 BLOCK_SIZE = 1024
 
