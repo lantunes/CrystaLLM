@@ -12,7 +12,7 @@ python bin/download.py cifs_v1_val.pkl.gz
 
 ### Main Dataset
 
-| Name                       | Description                                                                                  |                                                                                           |
+| Name                       | Description                                                                                  |  Download Link                                                                            |
 |----------------------------|----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
 | cifs_v1_orig.tar.gz        | The original CIF file dataset containing 3,551,492 symmetrized CIF files.                    | [download &#x2193;](https://zenodo.org/records/10642388/files/cifs_v1_orig.tar.gz)        |
 | cifs_v1_orig.pkl.gz        | The contents of `cifs_v1_orig.tar.gz` as a serialized Python list of 2-tuples: (ID, CIF).    | [download &#x2193;](https://zenodo.org/records/10642388/files/cifs_v1_orig.pkl.gz)        |
@@ -34,7 +34,7 @@ python bin/download.py cifs_v1_val.pkl.gz
 
 ### Pre-trained Models
 
-| Name                                    | Description                                                                                                |                                                                                                        |
+| Name                                    | Description                                                                                                | Download Link                                                                                          |
 | ----------------------------------------|------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | crystallm_v1_small.tar.gz               | Model with small architecture trained on the full main dataset.                                            | [download &#x2193;](https://zenodo.org/records/10642388/files/crystallm_v1_small.tar.gz)               |
 | crystallm_v1_large.tar.gz               | Model with large architecture trained on the full main dataset.                                            | [download &#x2193;](https://zenodo.org/records/10642388/files/crystallm_v1_large.tar.gz)               |
