@@ -1,8 +1,9 @@
+import sys
+sys.path.append(".")
 import os
 import argparse
 from collections import Counter
 import tarfile
-import re
 
 import numpy as np
 import itertools
@@ -13,6 +14,8 @@ from smact.screening import pauling_test
 
 from pymatgen.core import Structure
 from pymatgen.analysis.structure_matcher import StructureMatcher
+
+from crystallm import is_sensible
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -163,30 +166,7 @@ def read_true_cifs(input_path):
     return true_cifs
 
 
-def is_sensible(id, cif_string, length_lo=0.5, length_hi=1000, angle_lo=10, angle_hi=170, verbose=False):
-    cell_length_pattern = re.compile(r"_cell_length_[abc]\s+([\d\.]+)")
-    cell_angle_pattern = re.compile(r"_cell_angle_(alpha|beta|gamma)\s+([\d\.]+)")
-
-    cell_lengths = cell_length_pattern.findall(cif_string)
-    for length_str in cell_lengths:
-        length = float(length_str)
-        if length < length_lo or length > length_hi:
-            if verbose:
-                print(f"WARNING: nonsensical cell length found in CIF with ID '{id}': '{length_str}'")
-            return False
-
-    cell_angles = cell_angle_pattern.findall(cif_string)
-    for _, angle_str in cell_angles:
-        angle = float(angle_str)
-        if angle < angle_lo or angle > angle_hi:
-            if verbose:
-                print(f"WARNING: nonsensical cell angle found in CIF with ID '{id}': '{angle_str}'")
-            return False
-
-    return True
-
-
-def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, verbose):
+def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, length_lo, length_hi, angle_lo, angle_hi):
     gen_structs = []
     true_structs = []
     for id, cifs in tqdm(id_to_gen_cifs.items(), desc="converting CIFs to Structures..."):
@@ -196,7 +176,7 @@ def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, verbose):
         structs = []
         for cif in cifs[:n_gens]:
             try:
-                if not is_sensible(id, cif, verbose=verbose):
+                if not is_sensible(cif, length_lo, length_hi, angle_lo, angle_hi):
                     continue
                 structs.append(Structure.from_str(cif, fmt="cif"))
             except Exception:
@@ -220,14 +200,23 @@ if __name__ == "__main__":
     parser.add_argument("--num-gens", required=False, default=0, type=int,
                         help="The maximum number of generations to use per structure. Default is 0, which means "
                              "use all of the available generations.")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Any warnings will be printed to the console if this flag is included.")
+    parser.add_argument("--length_lo", required=False, default=0.5, type=float,
+                        help="The smallest cell length allowable for the sensibility check")
+    parser.add_argument("--length_hi", required=False, default=1000., type=float,
+                        help="The largest cell length allowable for the sensibility check")
+    parser.add_argument("--angle_lo", required=False, default=10., type=float,
+                        help="The smallest cell angle allowable for the sensibility check")
+    parser.add_argument("--angle_hi", required=False, default=170., type=float,
+                        help="The largest cell angle allowable for the sensibility check")
     args = parser.parse_args()
 
     gen_cifs_path = args.gen_cifs
     true_cifs_path = args.true_cifs
     n_gens = args.num_gens
-    verbose = args.verbose
+    length_lo = args.length_lo
+    length_hi = args.length_hi
+    angle_lo = args.angle_lo
+    angle_hi = args.angle_hi
 
     if n_gens == 0:
         n_gens = None
@@ -243,7 +232,9 @@ if __name__ == "__main__":
     id_to_gen_cifs = read_generated_cifs(gen_cifs_path)
     id_to_true_cifs = read_true_cifs(true_cifs_path)
 
-    gen_structs, true_structs = get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, verbose)
+    gen_structs, true_structs = get_structs(
+        id_to_gen_cifs, id_to_true_cifs, n_gens, length_lo, length_hi, angle_lo, angle_hi
+    )
 
     metrics = get_match_rate_and_rms(gen_structs, true_structs, struct_matcher)
 

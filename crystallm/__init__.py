@@ -5,6 +5,8 @@ from ._metrics import (
     is_space_group_consistent,
     is_atom_site_multiplicity_consistent,
     is_formula_consistent,
+    is_sensible,
+    is_valid,
 )
 
 from ._model import (

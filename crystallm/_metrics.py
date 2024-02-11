@@ -1,3 +1,5 @@
+import re
+
 from pymatgen.analysis.local_env import CrystalNN
 from pymatgen.core import Composition, Structure
 from pymatgen.io.cif import CifParser
@@ -120,3 +122,36 @@ def is_atom_site_multiplicity_consistent(cif_str):
 
     # Validate if the expected and actual atom counts match
     return expected_atoms == actual_atoms
+
+
+def is_sensible(cif_str, length_lo=0.5, length_hi=1000., angle_lo=10., angle_hi=170.):
+    cell_length_pattern = re.compile(r"_cell_length_[abc]\s+([\d\.]+)")
+    cell_angle_pattern = re.compile(r"_cell_angle_(alpha|beta|gamma)\s+([\d\.]+)")
+
+    cell_lengths = cell_length_pattern.findall(cif_str)
+    for length_str in cell_lengths:
+        length = float(length_str)
+        if length < length_lo or length > length_hi:
+            return False
+
+    cell_angles = cell_angle_pattern.findall(cif_str)
+    for _, angle_str in cell_angles:
+        angle = float(angle_str)
+        if angle < angle_lo or angle > angle_hi:
+            return False
+
+    return True
+
+
+def is_valid(cif_str, bond_length_acceptability_cutoff=1.0):
+    if not is_formula_consistent(cif_str):
+        return False
+    if not is_atom_site_multiplicity_consistent(cif_str):
+        return False
+    bond_length_score = bond_length_reasonableness_score(cif_str)
+    if bond_length_score < bond_length_acceptability_cutoff:
+        return False
+    if not is_space_group_consistent(cif_str):
+        return False
+    return True
+

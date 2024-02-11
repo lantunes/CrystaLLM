@@ -62,7 +62,7 @@ python bin/train.py --config=config/crystallm_perov_5_small.yaml device=cuda dty
 
 Generate the prompts from the CIF files of the test set:
 ```shell
-python bin/make_prompts.py perov_5_test.pkl.gz -o prompts_perov_5_test.tar.gz
+python bin/make_prompts.py perov_5_test_prep.pkl.gz -o prompts_perov_5_test.tar.gz
 ```
 
 Generate the CIF files, performing 20 generation attempts from each of the prompts: 
