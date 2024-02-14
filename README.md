@@ -456,7 +456,7 @@ device=cuda
 Assuming we're in a bash environment, we use the `$'string'` syntax for the `start` argument, since we'd like to
 specify the `\n` (new line) character at the end of the prompt. 
 
-The generated CIF files are sent to the console by default. Use the `target=file` argument to save the generated CIF 
+The generated CIF files are sent to the console by default. Include the `target=file` argument to save the generated CIF 
 files locally. (Each file with be named `sample_1.cif`, `sample_2.cif`, etc.)
 
 **NOTE:** The CIF files generated using the `bin/sample.py` script will need to be post-processed. 
