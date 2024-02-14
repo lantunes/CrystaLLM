@@ -381,6 +381,28 @@ will be saved. During training, a checkpoint containing the current model is sav
 
 ## Generating Crystal Structures
 
+Generating crystal structures with a trained model requires prompting the model with text that describes the 
+desired composition and, optionally, space group of the crystal structure.
+
+### Prompts
+
+A _prompt_ in this context refers to the partial contents of a (pre-processed) CIF file. Typically, the prompt 
+contains the cell composition, which is a formula specifying the total count of each type in the unit cell. For example,
+`Na2Cl2` is a cell composition. _NOTE: The elements of the cell composition must be sorted by electronegativity._
+The first token in the CIF file is usually `data_`. Therefore, to prompt the model with a cell composition, the model  
+would be prompted with `data_Na2Cl2\n`. (We've appended the new line character `\n` to indicate the end of the line.)
+
+For convenience, use the `bin/make_prompt_file.py` script to create a prompt for a given cell composition. For example,
+to create a prompt for the cell composition `Na2Cl2`:
+```shell
+python bin/make_prompt_file.py Na2Cl2 my_prompt.txt
+```
+optionally, include a space group:
+```shell
+python bin/make_prompt_file.py Na2Cl2 my_sg_prompt.txt --spacegroup P4/nmm
+```
+The prompt will be saved to a file named as specified by the second argument.
+
 ### Random Sampling
 
 To randomly sample from a trained model, and generate CIF files, use the `bin/sample.py` script. The sampling script 
@@ -401,6 +423,7 @@ options.
   device: str = "cuda"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
   dtype: str = "bfloat16"  # 'float32' or 'bfloat16' or 'float16'
   compile: bool = False  # use PyTorch 2.0 to compile the model to be faster
+  target: str = "console"  # where the generated content will be sent; can also be 'file'
   ```
 
 </details>
@@ -409,18 +432,34 @@ For example:
 ```shell
 python bin/sample.py \
 out_dir=out/my_model \
-start=FILE:out/prompt.txt \
+start=FILE:my_prompt.txt \
 num_samples=2 \
 top_k=10 \
 max_new_tokens=3000 \
 device=cuda
 ```
-In the above example, the trained model checkpoint file exists in the `out/my_model` directory. The prompt is actually
-in a file located at `out/prompt.txt`. Alternatively, we could also have placed the configuration options in a .yaml 
+In the above example, the trained model checkpoint file exists in the `out/my_model` directory. The prompt is
+in a file located at `my_prompt.txt`. Alternatively, we could also have placed the configuration options in a .yaml 
 file, as we did for training, and specified its path using the `--config` command line option.
 
-The generated CIF files are sent to the console. Note that the CIF files generated using the `bin/sample.py` script will
-need to be post-processed.
+Instead of specifying a file containing the prompt, we could also have specified the prompt directly:
+```shell
+python bin/sample.py \
+out_dir=out/my_model \
+start=$'data_Na2Cl2\n' \
+num_samples=2 \
+top_k=10 \
+max_new_tokens=3000 \
+device=cuda
+```
+Assuming we're in a bash environment, we use the `$'string'` syntax for the `start` argument, since we'd like to
+specify the `\n` (new line) character at the end of the prompt. 
+
+The generated CIF files are sent to the console by default. Use the `target=file` argument to save the generated CIF 
+files locally. (Each file with be named `sample_1.cif`, `sample_2.cif`, etc.)
+
+**NOTE:** The CIF files generated using the `bin/sample.py` script will need to be post-processed. 
+See the [Post-processing](#post-processing) section for more information. 
 
 ### Post-processing
 

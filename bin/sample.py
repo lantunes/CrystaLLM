@@ -31,6 +31,7 @@ class SampleDefaults:
     device: str = "cuda"  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
     dtype: str = "bfloat16"  # 'float32' or 'bfloat16' or 'float16'
     compile: bool = False  # use PyTorch 2.0 to compile the model to be faster
+    target: str = "console"  # where the generated content will be sent; can also be 'file'
 
 
 if __name__ == "__main__":
@@ -80,5 +81,14 @@ if __name__ == "__main__":
         with ctx:
             for k in range(C.num_samples):
                 y = model.generate(x, C.max_new_tokens, temperature=C.temperature, top_k=C.top_k)
-                print(decode(y[0].tolist()))
-                print('---------------')
+
+                generated = decode(y[0].tolist())
+
+                if C.target == "console":
+                    print(generated)
+                    print('---------------')
+                elif C.target == "file":
+                    fname = f"sample_{k+1}.cif"
+                    print(f"writing generated content to {fname} ...")
+                    with open(fname, "wt") as f:
+                        f.write(generated)
