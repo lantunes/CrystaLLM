@@ -26,6 +26,7 @@ model definition, training, and inference code in this repository is adapted fro
   - [Using Your Own CIF Files](#using-your-own-cif-files)
 - [Training the Model](#training-the-model)
 - [Generating Crystal Structures](#generating-crystal-structures)
+  - [Prompts](#prompts)
   - [Random Sampling](#random-sampling)
   - [Post-processing](#post-processing)
   - [Monte Carlo Tree Search Decoding](#monte-carlo-tree-search-decoding)
