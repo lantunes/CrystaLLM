@@ -6,7 +6,7 @@ can be used to generate crystal structures for a given composition and, optional
 the [GPT-2 architecture](https://github.com/openai/gpt-2). 
 This repository contains code that can be used to reproduce the experiments in the paper
 _[Crystal Structure Generation with Autoregressive Large Language Modeling](https://arxiv.org/abs/2307.04340)_. The 
-model definition, training, and inference code in this repository is adapted from the  
+model definition, training, and inference code in this repository is adapted from the 
 [nanoGPT](https://github.com/karpathy/nanoGPT) repository.
 
 <img src="resources/crystallm-github.png" width="100%"/>
