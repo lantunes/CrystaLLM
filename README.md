@@ -2,8 +2,9 @@ CrystaLLM
 ==============
 
 CrystaLLM is a Transformer-based Large Language Model of the CIF (Crystallographic Information File) format. The model 
-can be used to generate crystal structures, and is based on the [GPT-2 model](https://github.com/openai/gpt-2). This 
-repository contains code that can be used to reproduce the experiments in the paper
+can be used to generate crystal structures for a given composition and, optionally, space group. The model is based on 
+the [GPT-2 architecture](https://github.com/openai/gpt-2). 
+This repository contains code that can be used to reproduce the experiments in the paper
 _[Crystal Structure Generation with Autoregressive Large Language Modeling](https://arxiv.org/abs/2307.04340)_. The 
 model definition, training, and inference code in this repository is adapted from the  
 [nanoGPT](https://github.com/karpathy/nanoGPT) repository.
