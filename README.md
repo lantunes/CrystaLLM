@@ -45,10 +45,8 @@ model definition, training, and inference code in this repository is adapted fro
 
 ### Prerequisites
 
-- This project requires Python 3.9 or greater. 
-
-- This project uses Poetry for dependency management. Install Poetry if it's 
-not installed on your system, by following the instructions [here](https://python-poetry.org/docs/#installation).
+- This project requires Python 3.9 or greater.
+- This project requires PyTorch 2.0.1.
 
 ### Creating a Local Environment
 
@@ -73,22 +71,19 @@ Clone this repository to your local machine. Then, from the root of the cloned p
 by running:
 
 ```shell
-poetry install
+pip install -r requirements.txt
 ```
 
-This command reads the `pyproject.toml` file, and installs all the dependencies in the virtual environment.
+This command reads the `requirements.txt` file, and installs all the dependencies in the environment.
+
+Next, if PyTorch 2.0.1 is not already present in your environment, install PyTorch:
+
+```shell
+pip install torch==2.0.1
+```
 
 _NOTE: You may need to perform extra, or alternate steps to install PyTorch on your particular system. See the 
 [PyTorch documentation](https://pytorch.org/get-started/locally/) for more information._
-
-Alternatively, if PyTorch is already present in your environment, all other dependencies except PyTorch may be 
-installed by running:
-
-```shell
-poetry install --without torch
-```
-
-_NOTE: The project currently requires PyTorch 2.0.1._
 
 ## Obtaining the Training Data
 
