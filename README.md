@@ -52,7 +52,8 @@ not installed on your system, by following the instructions [here](https://pytho
 
 ### Creating a Local Environment
 
-Perform the following steps to create and activate a local environment:
+It is a good practice to have separate, dedicated Python environments for different projects. Perform the following 
+optional steps to create and activate a local environment:
 
 1. Create a Python virtual environment:
 
@@ -79,6 +80,15 @@ This command reads the `pyproject.toml` file, and installs all the dependencies 
 
 _NOTE: You may need to perform extra, or alternate steps to install PyTorch on your particular system. See the 
 [PyTorch documentation](https://pytorch.org/get-started/locally/) for more information._
+
+Alternatively, if PyTorch is already present in your environment, all other dependencies except PyTorch may be 
+installed by running:
+
+```shell
+poetry install --without torch
+```
+
+_NOTE: The project currently requires PyTorch 2.0.1._
 
 ## Obtaining the Training Data
 
@@ -583,6 +593,17 @@ Finally, perform the evaluation:
 python bin/evaluate_cifs.py gen_v1_small_raw.tar.gz -o gen_v1_small_eval.csv
 ```
 
+which produces the output:
+```
+space group consistent: 10172/10286 (0.989)
+atom site multiplicity consistent: 10226/10286 (0.994)
+avg. bond length reasonableness score: 0.9879 ± 0.0703
+bond lengths reasonable: 9763/10286 (0.949)
+num valid: 9682/10286 (0.94)
+longest valid generated length: 1,085
+avg. valid generated length: 331.981 ± 42.971
+```
+
 The results of the evaluation will be printed to the console and stored in the generated `gen_v1_small_eval.csv` file.
 The results will include:
 - the fraction of generated CIF files where the printed space group is consistent with the generated structure
@@ -661,7 +682,8 @@ python -m unittest discover tests
 
 ## Need Help?
 
-If you encounter any issues, or have any questions, please feel free to open an issue in this repository.
+If you encounter any issues, or have any questions, please feel free to 
+[open an issue](https://github.com/lantunes/CrystaLLM/issues) in this repository.
 
 ## Citing CrystaLLM
 

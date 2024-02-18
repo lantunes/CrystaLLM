@@ -50,7 +50,7 @@ def progress_listener(queue, n):
             break
 
 
-def eval_cif(progress_queue, task_queue, result_queue, length_lo, length_hi, angle_lo, angle_hi):
+def eval_cif(progress_queue, task_queue, result_queue, length_lo, length_hi, angle_lo, angle_hi, debug):
     tokenizer = CIFTokenizer()
     n_atom_site_multiplicity_consistent = 0
     n_space_group_consistent = 0
@@ -65,7 +65,7 @@ def eval_cif(progress_queue, task_queue, result_queue, length_lo, length_hi, ang
 
         try:
             if not is_sensible(cif, length_lo, length_hi, angle_lo, angle_hi):
-                raise Exception
+                raise Exception("CIF not sensible")
 
             gen_len = len(tokenizer.tokenize_cif(cif))
 
@@ -97,8 +97,9 @@ def eval_cif(progress_queue, task_queue, result_queue, length_lo, length_hi, ang
 
             is_valid_and_len.append((data_formula, space_group_symbol, valid, gen_len, implied_vol, gen_vol))
 
-        except Exception:
-            pass
+        except Exception as e:
+            if debug:
+                print(f"ERROR: {e}")
 
         progress_queue.put(1)
 
@@ -128,6 +129,8 @@ if __name__ == "__main__":
                         help="The largest cell angle allowable for the sensibility check")
     parser.add_argument("--workers", type=int, default=2,
                         help="Number of workers to use for processing.")
+    parser.add_argument("--debug", required=False, action="store_true",
+                        help="Include this flag to print exception messages if they occur during evaluation")
     args = parser.parse_args()
 
     gen_cifs_path = args.gen_cifs
@@ -137,6 +140,7 @@ if __name__ == "__main__":
     angle_lo = args.angle_lo
     angle_hi = args.angle_hi
     workers = args.workers
+    debug = args.debug
 
     cifs = read_generated_cifs(gen_cifs_path)
 
@@ -154,7 +158,7 @@ if __name__ == "__main__":
     processes = [
         mp.Process(
             target=eval_cif,
-            args=(progress_queue, task_queue, result_queue, length_lo, length_hi, angle_lo, angle_hi)
+            args=(progress_queue, task_queue, result_queue, length_lo, length_hi, angle_lo, angle_hi, debug)
         ) for _ in range(workers)
     ]
     processes.append(watcher)
@@ -198,15 +202,15 @@ if __name__ == "__main__":
         results_data["implied_vol"].append(implied_vol)
         results_data["gen_vol"].append(gen_vol)
 
-    print(f"space_group_consistent: {n_space_group_consistent}/{n} ({n_space_group_consistent / n:.3f})\n "
-          f"atom_site_multiplicity_consistent: "
-          f"{n_atom_site_multiplicity_consistent}/{n} ({n_atom_site_multiplicity_consistent / n:.3f})\n "
-          f"bond length reasonableness score: "
-          f"{np.mean(bond_length_reasonableness_scores):.4f} ± {np.std(bond_length_reasonableness_scores):.4f}\n "
+    print(f"space group consistent: {n_space_group_consistent}/{n} ({n_space_group_consistent / n:.3f})\n"
+          f"atom site multiplicity consistent: "
+          f"{n_atom_site_multiplicity_consistent}/{n} ({n_atom_site_multiplicity_consistent / n:.3f})\n"
+          f"avg. bond length reasonableness score: "
+          f"{np.mean(bond_length_reasonableness_scores):.4f} ± {np.std(bond_length_reasonableness_scores):.4f}\n"
           f"bond lengths reasonable: "
           f"{bond_length_reasonableness_scores.count(1.)}/{n} ({bond_length_reasonableness_scores.count(1.) / n:.3f})")
-    print(f"num valid: {n_valid} / {n} ({n_valid / n:.2f})")
-    print(f"longest valid generated length: {np.max(valid_gen_lens):,}")
+    print(f"num valid: {n_valid}/{n} ({n_valid / n:.2f})")
+    print(f"longest valid generated length: {np.max(valid_gen_lens) if len(valid_gen_lens) > 0 else np.nan:,}")
     print(f"avg. valid generated length: {np.mean(valid_gen_lens):.3f} ± {np.std(valid_gen_lens):.3f}")
 
     pd.DataFrame(results_data).to_csv(out_fname)
