@@ -9,7 +9,7 @@ always_save_checkpoint: True
 # whether to validate with a validation set
 validate: False
 
-dataset: 'out/tokens_v1_mpts_52_all'
+dataset: 'out/tokens_v1_minus_mpts_52'
 batch_size: 32
 block_size: 1024
 
