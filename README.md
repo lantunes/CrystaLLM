@@ -26,6 +26,7 @@ model definition, training, and inference code in this repository is adapted fro
   - [Identifying CIF Start Indices](#identifying-cif-start-indices)
   - [Using Your Own CIF Files](#using-your-own-cif-files)
 - [Training the Model](#training-the-model)
+  - [Distributed Training](#distributed-training)
 - [Generating Crystal Structures](#generating-crystal-structures)
   - [Prompts](#prompts)
   - [Random Sampling](#random-sampling)
@@ -321,6 +322,7 @@ is the only option that is required to be specified by the user.
   
   # data
   dataset: str = ""  # the path to the folder containing the .bin files with encoded tokens
+  # reduce gradient accumulation steps accordingly for multi-GPU training
   gradient_accumulation_steps: int = 40  # used to simulate larger batch sizes
   batch_size: int = 64  # if gradient_accumulation_steps > 1, this is the micro-batch size
   block_size: int = 2048  # context of up to `block_size` previous characters
@@ -352,6 +354,8 @@ is the only option that is required to be specified by the user.
   compile: bool = True  # use PyTorch 2.0 to compile the model to be faster
   underrep_p: float = 0.0
   validate: bool = False  # whether to evaluate the model using the validation set
+  backend: str = "nccl"  # backend for DDP, "nccl", "gloo", etc.
+  seed: int = 1337  # the seed to use for torch.manual_seed
   ```
 </details>
 
@@ -385,6 +389,36 @@ It's also good practice to specify a value for the `out_dir` option, which is th
 will be saved. During training, a checkpoint containing the current model is saved to this directory periodically 
 (depending on how training is configured). The checkpoint is a file named `ckpt.pt`, and any existing 
 `ckpt.pt` file in the `out_dir` will be overwritten every time the model is saved during training.
+
+### Distributed Training
+
+The model can be trained in parallel on multiple GPUs, either on the same node, or across multiple nodes, using PyTorch 
+Distributed Data Parallel (DDP). Distributed training can greatly speed up training the model when access to multiple 
+GPUs is available.
+
+To train the model using 4 GPUs on the same node (i.e. machine):
+```shell
+torchrun --standalone --nproc_per_node=4 bin/train.py --config=my_train.yaml
+```
+
+To train the model on 16 GPUs split across 2 nodes (i.e. each node has 8 GPUs), execute the following command on the 
+first (master) node, which has an IP of 1.2.3.4 in this example:
+```shell
+torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 \
+--master_addr=1.2.3.4 --master_port=1234 bin/train.py --config=my_train.yaml
+```
+Then, execute the following command on the worker node:
+```shell
+torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 \
+--master_addr=1.2.3.4 --master_port=1234 bin/train.py --config=my_train.yaml
+```
+_NOTE: If your cluster does not have Infiniband interconnect, then prepend `NCCL_IB_DISABLE=1` to the command._
+
+_NOTE: The value of the `gradient_accumulation_steps` configuration option can be reduced accordingly during 
+distributed training. Gradient accumulation is used to simulate larger batch sizes when GPU memory is limited. 
+With more GPUs, however, the number of gradient accumulation steps can be reduced, since the batches are 
+processed across the GPUs. For example, if 40 gradient accumulation steps were used with a single GPU, 10 gradient 
+accumulation steps can be used with 4 GPUs._
 
 ## Generating Crystal Structures
 
