@@ -75,7 +75,7 @@ class TrainDefaults:
 
 
 @dataclass
-class LocalDevice:
+class LocalConfig:
     device: str = ""
     is_master_process: bool = True
     is_ddp: bool = False
@@ -104,22 +104,22 @@ def read_start_indices(
     return start_indices
 
 
-def get_local_device(backend, device):
+def get_local_config(backend, device):
     # by default, we are running on a single gpu, and one process
     ddp_rank = int(os.environ.get("RANK", -1))
-    ld = LocalDevice(device=device, is_ddp=ddp_rank != -1)
-    if ld.is_ddp:
+    lc = LocalConfig(device=device, is_ddp=ddp_rank != -1)
+    if lc.is_ddp:
         init_process_group(backend=backend)
-        ld.ddp_local_rank = int(os.environ["LOCAL_RANK"])
-        ld.device = f"cuda:{ld.ddp_local_rank}"
-        torch.cuda.set_device(ld.device)
-        ld.is_master_process = ddp_rank == 0  # this process will do logging, checkpointing etc.
-        ld.seed_offset = ddp_rank  # each process gets a different seed
-    return ld
+        lc.ddp_local_rank = int(os.environ["LOCAL_RANK"])
+        lc.device = f"cuda:{lc.ddp_local_rank}"
+        torch.cuda.set_device(lc.device)
+        lc.is_master_process = ddp_rank == 0  # this process will do logging, checkpointing etc.
+        lc.seed_offset = ddp_rank  # each process gets a different seed
+    return lc
 
 
 def main(C):
-    L = get_local_device(C.backend, C.device)
+    L = get_local_config(C.backend, C.device)
     print(f"DDP: {L.is_ddp}")
 
     if L.is_master_process:
