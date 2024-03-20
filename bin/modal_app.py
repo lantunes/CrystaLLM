@@ -34,7 +34,7 @@ stub = Stub(
 
 
 @stub.cls(
-    network_file_systems={"/crystallm_volume": modal.NetworkFileSystem.from_name("crystallm-volume")},
+    volumes={"/crystallm_volume": modal.Volume.from_name("crystallm-volume_2")},
     mounts=[
         Mount.from_local_dir("./modal_app_config", remote_path="/root"),
         Mount.from_local_file("./lib/spacegroups.txt", remote_path="/root/lib/spacegroups.txt"),
