@@ -14,7 +14,10 @@ def extract_prompt(cif_str, pattern):
     match = re.search(pattern, cif_str)
     if match:
         start_index, end_index = match.start(), match.end()
-        return cif_str[start_index:end_index]
+        cif_str = cif_str[start_index:end_index]
+        # strip out any leading or trailing spaces from the prompt
+        cif_str = re.sub(r"^[ \t]+|[ \t]+$", "", cif_str, flags=re.MULTILINE)
+        return cif_str
     else:
         raise Exception(f"could not extract pattern: \n{cif_str}")
 

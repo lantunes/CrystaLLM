@@ -1,4 +1,7 @@
+import sys
+sys.path.append(".")
 import argparse
+import re
 
 from pymatgen.core import Composition
 
@@ -13,7 +16,10 @@ def get_prompt(comp, sg=None):
     if sg is not None:
         # construct an input string with the space group
         block = get_atomic_props_block_for_formula(comp_str)
-        return f"data_{comp_str}\n{block}\n_symmetry_space_group_name_H-M {sg}\n"
+        cif_str = f"data_{comp_str}\n{block}\n_symmetry_space_group_name_H-M {sg}\n"
+        # strip out any leading or trailing spaces from the prompt
+        cif_str = re.sub(r"^[ \t]+|[ \t]+$", "", cif_str, flags=re.MULTILINE)
+        return cif_str
     else:
         return f"data_{comp_str}\n"
 
