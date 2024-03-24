@@ -27,7 +27,20 @@ def progress_listener(queue, n):
         pbar.update(message)
 
 
-def generate(model_dir, seed, device, dtype, num_gens, temperature, top_k, chunk_of_prompts, queue):
+def get_prompts_from_file(prompts_file):
+    prompts = []
+    with tarfile.open(prompts_file, "r:gz") as tar:
+        for member in tqdm(tar.getmembers(), desc="extracting prompts..."):
+            f = tar.extractfile(member)
+            if f is not None:
+                content = f.read().decode("utf-8")
+                filename = os.path.basename(member.name)
+                cif_id = filename.replace(".txt", "")
+                prompts.append((cif_id, content))
+    return prompts
+
+
+def generate(model_dir, seed, device, dtype, num_gens, temperature, top_k, max_new_tokens, chunk_of_prompts, queue):
     # init torch
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -85,11 +98,12 @@ if __name__ == "__main__":
 
     parser.add_argument("--model", type=str, required=True,
                         help="Path to the directory containing the trained model checkpoint file.")
-    parser.add_argument("--prompts", type=str, required=True,
-                        help="Path to the .tar.gz file containing the prompt .txt files.")
     parser.add_argument("--out", type=str, required=True,
                         help="Path to the gzipped tarball where the generated CIF files will be stored. "
                              "It is recommended that the filename end in `.tar.gz`.")
+    parser.add_argument("--prompts", type=str,
+                        help="Path to the .tar.gz file containing the prompt .txt files. "
+                             "If not provided, CIFs are generated ab initio.")
     parser.add_argument("--top-k", type=int, default=10,
                         help="The top-k value to use during sampling.")
     parser.add_argument("--max-new-tokens", type=int, default=3000,
@@ -115,6 +129,7 @@ if __name__ == "__main__":
 
     model_dir = args.model
     prompts_file = args.prompts
+    ab_initio = not args.prompts
     out_file = args.out
     top_k = args.top_k
     max_new_tokens = args.max_new_tokens
@@ -131,15 +146,11 @@ if __name__ == "__main__":
 
     workers = 1 if device == "cpu" else gpus
 
-    prompts = []
-    with tarfile.open(prompts_file, "r:gz") as tar:
-        for member in tqdm(tar.getmembers(), desc="extracting prompts..."):
-            f = tar.extractfile(member)
-            if f is not None:
-                content = f.read().decode("utf-8")
-                filename = os.path.basename(member.name)
-                cif_id = filename.replace(".txt", "")
-                prompts.append((cif_id, content))
+    if ab_initio:
+        prompts = [(i + 1, "data_") for i in range(num_gens)]
+        num_gens = 1
+    else:
+        prompts = get_prompts_from_file(prompts_file)
 
     chunks = array_split(prompts, workers)
     manager = mp.Manager()
@@ -151,7 +162,11 @@ if __name__ == "__main__":
     for i in range(workers):
         chunk = chunks[i]
         dev = f"cuda:{i}" if device == "cuda" else device
-        job = pool.apply_async(generate, (model_dir, seed, dev, dtype, num_gens, temperature, top_k, chunk, queue))
+        worker_seed = (seed + i) if ab_initio else seed
+        job = pool.apply_async(
+            generate,
+            (model_dir, worker_seed, dev, dtype, num_gens, temperature, top_k, max_new_tokens, chunk, queue)
+        )
         jobs.append(job)
 
     generated = []
