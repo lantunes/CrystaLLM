@@ -1,4 +1,4 @@
-out_dir: 'out/crystallm_v1_minus_mpts_52_small'
+out_dir: 'out/crystallm_v1_minus_perov_5_small'
 eval_interval: 250  # how often to evaluate against the validation set
 eval_iters_train: 200
 log_interval: 1  # how often to print to the console (1 = every iteration)
@@ -9,7 +9,9 @@ always_save_checkpoint: True
 # whether to validate with a validation set
 validate: False
 
-dataset: 'out/tokens_v1_minus_mpts_52'
+dataset: 'out/tokens_v1_minus_perov_5'
+# we're using 4 GPUs
+gradient_accumulation_steps: 10
 batch_size: 32
 block_size: 1024
 
