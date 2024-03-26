@@ -1,10 +1,18 @@
+import os
 import sys
-sys.path.append(".")
+# sys.path.append(".")
 import argparse
 import gzip
 from tqdm import tqdm
 import multiprocessing as mp
 from queue import Empty
+
+# Calculate the absolute path to the 'crystallm' directory
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Absolute dir the script is in
+crystallm_dir = os.path.abspath(os.path.join(script_dir, '..'))  # 'crystallm' is one level up
+
+# Add 'crystallm' directory to sys.path
+sys.path.append(crystallm_dir)
 
 from crystallm import (
     semisymmetrize_cif,
