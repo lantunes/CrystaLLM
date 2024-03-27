@@ -11,18 +11,52 @@ from tqdm import tqdm
 
 import smact
 from smact.screening import pauling_test
+from scipy.stats import wasserstein_distance
+from scipy.spatial.distance import cdist
 
-from pymatgen.core import Structure
+from pymatgen.core import Structure, Composition
 from pymatgen.analysis.structure_matcher import StructureMatcher
+from matminer.featurizers.site.fingerprint import CrystalNNFingerprint
+from matminer.featurizers.composition.composite import ElementProperty
 
 from crystallm import is_sensible
 
 import warnings
 warnings.filterwarnings("ignore")
 
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# from https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
-def smact_validity(comp, count, use_pauling_test=True, include_alloys=True):
+CrystalNNFP = CrystalNNFingerprint.from_preset("ops")
+CompFP = ElementProperty.from_preset("magpie")
+
+COV_Cutoffs = {
+    "mp20": {"struc": 0.4, "comp": 10.},
+    "carbon": {"struc": 0.2, "comp": 4.},
+    "perovskite": {"struc": 0.2, "comp": 4},
+}
+
+
+class StandardScaler:
+    def __init__(self, means, stds):
+        self.means = means
+        self.stds = stds
+
+    def transform(self, X):
+        X = np.array(X).astype(float)
+        return (X - self.means) / self.stds
+
+
+# adapted from
+#  https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
+def smact_validity(struct, use_pauling_test=True, include_alloys=True):
+    atom_types = [str(specie) for specie in struct.species]
+    elem_counter = Counter(atom_types)
+    elems = [(elem, elem_counter[elem]) for elem in sorted(elem_counter.keys())]
+    comp, elem_counts = list(zip(*elems))
+    elem_counts = np.array(elem_counts)
+    elem_counts = elem_counts / np.gcd.reduce(elem_counts)
+    count = tuple(elem_counts.astype("int").tolist())
+
     elem_symbols = tuple(comp)
     space = smact.element_dictionary(elem_symbols)
     smact_elems = [e[1] for e in space.items()]
@@ -60,6 +94,21 @@ def smact_validity(comp, count, use_pauling_test=True, include_alloys=True):
     return False
 
 
+def get_comp_fingerprint(struct):
+    atom_types = [str(specie) for specie in struct.species]
+    elem_counter = Counter(atom_types)
+    comp = Composition(elem_counter)
+    return CompFP.featurize(comp)
+
+
+def get_struct_fingerprint(struct):
+    try:
+        site_fps = [CrystalNNFP.featurize(struct, i) for i in range(len(struct))]
+    except Exception:
+        return None
+    return np.array(site_fps).mean(axis=0)
+
+
 # from https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
 def structure_validity(crystal, cutoff=0.5):
     dist_mat = crystal.distance_matrix
@@ -73,17 +122,96 @@ def structure_validity(crystal, cutoff=0.5):
 
 
 def is_valid(struct):
-    atom_types = [str(specie) for specie in struct.species]
-    elem_counter = Counter(atom_types)
-    composition = [(elem, elem_counter[elem]) for elem in sorted(elem_counter.keys())]
-    elems, counts = list(zip(*composition))
-    counts = np.array(counts)
-    counts = counts / np.gcd.reduce(counts)
-    comps = tuple(counts.astype("int").tolist())
-
-    comp_valid = smact_validity(elems, comps)
+    comp_valid = smact_validity(struct)
     struct_valid = structure_validity(struct)
     return comp_valid and struct_valid
+
+
+def is_valid_unconditional(struct):
+    comp_valid = smact_validity(struct)
+    struct_valid = structure_validity(struct)
+    struct_fp = get_struct_fingerprint(struct)
+    return comp_valid and struct_valid and struct_fp is not None
+
+
+# from https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
+def filter_fps(struc_fps, comp_fps):
+    assert len(struc_fps) == len(comp_fps)
+
+    filtered_struc_fps, filtered_comp_fps = [], []
+
+    for struc_fp, comp_fp in zip(struc_fps, comp_fps):
+        if struc_fp is not None and comp_fp is not None:
+            filtered_struc_fps.append(struc_fp)
+            filtered_comp_fps.append(comp_fp)
+    return filtered_struc_fps, filtered_comp_fps
+
+
+# adapted from
+#  https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
+def compute_cov(crys, gt_crys, struc_cutoff, comp_cutoff, comp_scaler, num_gen_crystals=None):
+    struc_fps = []
+    for struct in tqdm(crys, desc="getting struct fingerprints for generated..."):
+        struc_fps.append(get_struct_fingerprint(struct))
+    comp_fps = []
+    for struct in tqdm(crys, desc="getting comp fingerprints for generated..."):
+        comp_fps.append(get_comp_fingerprint(struct))
+    gt_struc_fps = []
+    for struct in tqdm(gt_crys, desc="getting struct fingerprints for ground-truth..."):
+        gt_struc_fps.append(get_struct_fingerprint(struct))
+    gt_comp_fps = []
+    for struct in tqdm(gt_crys, desc="getting comp fingerprints for ground-truth..."):
+        gt_comp_fps.append(get_comp_fingerprint(struct))
+
+    assert len(struc_fps) == len(comp_fps)
+    assert len(gt_struc_fps) == len(gt_comp_fps)
+
+    # Use number of crystal before filtering to compute COV
+    if num_gen_crystals is None:
+        num_gen_crystals = len(struc_fps)
+
+    struc_fps, comp_fps = filter_fps(struc_fps, comp_fps)
+
+    comp_fps = comp_scaler.transform(comp_fps)
+    gt_comp_fps = comp_scaler.transform(gt_comp_fps)
+
+    struc_fps = np.array(struc_fps)
+    gt_struc_fps = np.array(gt_struc_fps)
+    comp_fps = np.array(comp_fps)
+    gt_comp_fps = np.array(gt_comp_fps)
+
+    struc_pdist = cdist(struc_fps, gt_struc_fps)
+    comp_pdist = cdist(comp_fps, gt_comp_fps)
+
+    struc_recall_dist = struc_pdist.min(axis=0)
+    struc_precision_dist = struc_pdist.min(axis=1)
+    comp_recall_dist = comp_pdist.min(axis=0)
+    comp_precision_dist = comp_pdist.min(axis=1)
+
+    cov_recall = np.mean(np.logical_and(
+        struc_recall_dist <= struc_cutoff,
+        comp_recall_dist <= comp_cutoff))
+    cov_precision = np.sum(np.logical_and(
+        struc_precision_dist <= struc_cutoff,
+        comp_precision_dist <= comp_cutoff)) / num_gen_crystals
+
+    metrics_dict = {
+        "cov_recall": cov_recall,
+        "cov_precision": cov_precision,
+        "amsd_recall": np.mean(struc_recall_dist),
+        "amsd_precision": np.mean(struc_precision_dist),
+        "amcd_recall": np.mean(comp_recall_dist),
+        "amcd_precision": np.mean(comp_precision_dist),
+    }
+
+    combined_dist_dict = {
+        "struc_recall_dist": struc_recall_dist.tolist(),
+        "struc_precision_dist": struc_precision_dist.tolist(),
+        "comp_recall_dist": comp_recall_dist.tolist(),
+        "comp_precision_dist": comp_precision_dist.tolist(),
+    }
+
+    return metrics_dict, combined_dist_dict
 
 
 # adapted from
@@ -119,6 +247,75 @@ def get_match_rate_and_rms(gen_structs, true_structs, matcher):
     match_rate = sum(rms_dists != None) / len(gen_structs)
     mean_rms_dist = rms_dists[rms_dists != None].mean()
     return {"match_rate": match_rate, "rms_dist": mean_rms_dist}
+
+
+# adapted from
+#  https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/compute_metrics.py
+def get_unconditional_metrics(gen_structs, true_structs, comp_scaler, cov_cutoffs, n_samples=1000):
+    valid_structs = []
+    for struct in tqdm(gen_structs, desc="getting valid structures..."):
+        if is_valid_unconditional(struct):
+            valid_structs.append(struct)
+    if len(valid_structs) >= n_samples:
+        sampled_indices = np.random.choice(len(valid_structs), n_samples, replace=False)
+        valid_samples = [valid_structs[i] for i in sampled_indices]
+    else:
+        raise Exception(
+            f"Insufficient valid crystals in the generated set: {len(valid_structs)}/{n_samples}")
+
+    n_comp_valid = 0
+    for struct in tqdm(gen_structs, desc="counting comp valid..."):
+        if smact_validity(struct):
+            n_comp_valid += 1
+    comp_valid = n_comp_valid / len(gen_structs)
+    n_struct_valid = 0
+    for struct in tqdm(gen_structs, desc="counting struct valid..."):
+        if structure_validity(struct):
+            n_struct_valid += 1
+    struct_valid = n_comp_valid / len(gen_structs)
+    valid = len(valid_structs) / len(gen_structs)
+    valid_dict = {"comp_valid": comp_valid, "struct_valid": struct_valid, "valid": valid}
+
+    print("computing wdist_density...")
+    pred_densities = [struct.density for struct in valid_samples]
+    gt_densities = [struct.density for struct in true_structs]
+    wdist_density = wasserstein_distance(pred_densities, gt_densities)
+    wdist_density_dict = {"wdist_density": wdist_density}
+
+    print("computing wdist_num_elems...")
+    pred_nelems = [len(set(struct.species)) for struct in valid_samples]
+    gt_nelems = [len(set(struct.species)) for struct in true_structs]
+    wdist_num_elems = wasserstein_distance(pred_nelems, gt_nelems)
+    wdist_num_elems_dict = {"wdist_num_elems": wdist_num_elems}
+
+    # TODO use property models to compute formation energy Wasserstein distances
+
+    print("computing cov...")
+    cutoff_dict = COV_Cutoffs[cov_cutoffs]
+    cov_metrics_dict, _ = compute_cov(
+        gen_structs,
+        true_structs,
+        struc_cutoff=cutoff_dict["struc"],
+        comp_cutoff=cutoff_dict["comp"],
+        comp_scaler=comp_scaler,
+    )
+
+    metrics = {}
+    metrics.update(valid_dict)
+    metrics.update(wdist_density_dict)
+    # metrics.update(wdist_prop_dict)  # TODO
+    metrics.update(wdist_num_elems_dict)
+    metrics.update(cov_metrics_dict)
+
+    return metrics
+
+
+def get_comp_scaler_means_stds():
+    with open(os.path.join(THIS_DIR, "../resources/comp_scaler_means.txt"), "rt") as f:
+        comp_scaler_means = [float(num.strip()) for num in f.readlines()]
+    with open(os.path.join(THIS_DIR, "../resources/comp_scaler_stds.txt"), "rt") as f:
+        comp_scaler_stds = [float(num.strip()) for num in f.readlines()]
+    return comp_scaler_means, comp_scaler_stds
 
 
 def extract_cif_id(filepath):
@@ -187,6 +384,19 @@ def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, length_lo, length_hi, a
     return gen_structs, true_structs
 
 
+def get_structs_unconditional(id_to_gen_cifs, length_lo, length_hi, angle_lo, angle_hi):
+    gen_structs = []
+    for id, cifs in tqdm(id_to_gen_cifs.items(), desc="converting CIFs to Structures..."):
+        cif = cifs[0]
+        try:
+            if not is_sensible(cif, length_lo, length_hi, angle_lo, angle_hi):
+                continue
+            gen_structs.append(Structure.from_str(cif, fmt="cif"))
+        except Exception:
+            pass
+    return gen_structs
+
+
 """
 This script performs the CDVAE and DiffCSP benchmark analysis, as described in:
 https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/compute_metrics.py.
@@ -199,7 +409,8 @@ if __name__ == "__main__":
                         help="Path to the .tar.gz file containing the true CIF files.")
     parser.add_argument("--num-gens", required=False, default=0, type=int,
                         help="The maximum number of generations to use per structure. Default is 0, which means "
-                             "use all of the available generations.")
+                             "use all of the available generations. (This argument is ignored for the unconditional "
+                             "generation task metrics.)")
     parser.add_argument("--length_lo", required=False, default=0.5, type=float,
                         help="The smallest cell length allowable for the sensibility check")
     parser.add_argument("--length_hi", required=False, default=1000., type=float,
@@ -208,6 +419,15 @@ if __name__ == "__main__":
                         help="The smallest cell angle allowable for the sensibility check")
     parser.add_argument("--angle_hi", required=False, default=170., type=float,
                         help="The largest cell angle allowable for the sensibility check")
+    parser.add_argument("--unconditional", action="store_true",
+                        help="If included, the unconditional generation task metrics will be computed "
+                             "instead of the CSP task metrics")
+    parser.add_argument("--cov-cutoffs", choices=["mp20", "carbon", "perovskite"],
+                        required=False, default="perovskite",
+                        help="The coverage cutoffs to use if the unconditional generation task metrics are "
+                             "being computed. Default is 'perovskite'.")
+    parser.add_argument("--seed", type=int, default=1337,
+                        help="The random seed to use for the unconditional generation task metrics.")
     args = parser.parse_args()
 
     gen_cifs_path = args.gen_cifs
@@ -217,6 +437,9 @@ if __name__ == "__main__":
     length_hi = args.length_hi
     angle_lo = args.angle_lo
     angle_hi = args.angle_hi
+    unconditional = args.unconditional
+    cov_cutoffs = args.cov_cutoffs
+    seed = args.seed
 
     if n_gens == 0:
         n_gens = None
@@ -232,10 +455,22 @@ if __name__ == "__main__":
     id_to_gen_cifs = read_generated_cifs(gen_cifs_path)
     id_to_true_cifs = read_true_cifs(true_cifs_path)
 
-    gen_structs, true_structs = get_structs(
-        id_to_gen_cifs, id_to_true_cifs, n_gens, length_lo, length_hi, angle_lo, angle_hi
-    )
-
-    metrics = get_match_rate_and_rms(gen_structs, true_structs, struct_matcher)
+    if unconditional:
+        np.random.seed(seed)
+        comp_scaler_means, comp_scaler_stds = get_comp_scaler_means_stds()
+        comp_scaler = StandardScaler(
+            means=np.array(comp_scaler_means),
+            stds=np.array(comp_scaler_stds),
+        )
+        gen_structs = get_structs_unconditional(
+            id_to_gen_cifs, length_lo, length_hi, angle_lo, angle_hi
+        )
+        true_structs = [Structure.from_str(cif, fmt="cif") for cif in id_to_true_cifs.values()]
+        metrics = get_unconditional_metrics(gen_structs, true_structs, comp_scaler, cov_cutoffs)
+    else:
+        gen_structs, true_structs = get_structs(
+            id_to_gen_cifs, id_to_true_cifs, n_gens, length_lo, length_hi, angle_lo, angle_hi
+        )
+        metrics = get_match_rate_and_rms(gen_structs, true_structs, struct_matcher)
 
     print(metrics)
