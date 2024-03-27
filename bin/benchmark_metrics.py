@@ -128,10 +128,7 @@ def is_valid(struct):
 
 
 def is_valid_unconditional(struct):
-    comp_valid = smact_validity(struct)
-    struct_valid = structure_validity(struct)
-    struct_fp = get_struct_fingerprint(struct)
-    return comp_valid and struct_valid and struct_fp is not None
+    return is_valid(struct) and get_struct_fingerprint(struct) is not None
 
 
 # from https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
@@ -152,7 +149,8 @@ def filter_fps(struc_fps, comp_fps):
 def compute_cov(crys, gt_crys, struc_cutoff, comp_cutoff, comp_scaler, num_gen_crystals=None):
     struc_fps = []
     for struct in tqdm(crys, desc="getting struct fingerprints for generated..."):
-        struc_fps.append(get_struct_fingerprint(struct))
+        # get the structure fingerprint only for a valid structure
+        struc_fps.append(get_struct_fingerprint(struct) if structure_validity(struct) else None)
     comp_fps = []
     for struct in tqdm(crys, desc="getting comp fingerprints for generated..."):
         comp_fps.append(get_comp_fingerprint(struct))
