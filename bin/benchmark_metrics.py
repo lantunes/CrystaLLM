@@ -19,7 +19,7 @@ from pymatgen.analysis.structure_matcher import StructureMatcher
 from matminer.featurizers.site.fingerprint import CrystalNNFingerprint
 from matminer.featurizers.composition.composite import ElementProperty
 
-from crystallm import is_sensible
+from crystallm import is_sensible, extract_data_formula
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -48,8 +48,8 @@ class StandardScaler:
 
 # adapted from
 #  https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
-def smact_validity(struct, use_pauling_test=True, include_alloys=True):
-    atom_types = [str(specie) for specie in struct.species]
+def smact_validity(atom_types, use_pauling_test=True, include_alloys=True):
+    # atom_types e.g. ["Fe", "Fe", "O", "O", "O"]
     elem_counter = Counter(atom_types)
     elems = [(elem, elem_counter[elem]) for elem in sorted(elem_counter.keys())]
     comp, elem_counts = list(zip(*elems))
@@ -122,13 +122,15 @@ def structure_validity(crystal, cutoff=0.5):
 
 
 def is_valid(struct):
-    comp_valid = smact_validity(struct)
+    comp_valid = smact_validity(
+        atom_types=[str(specie) for specie in struct.species]
+    )
     struct_valid = structure_validity(struct)
     return comp_valid and struct_valid
 
 
-def is_valid_unconditional(struct):
-    return is_valid(struct) and get_struct_fingerprint(struct) is not None
+def is_valid_unconditional(struct, fp):
+    return is_valid(struct) and fp is not None
 
 
 # from https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
@@ -146,20 +148,11 @@ def filter_fps(struc_fps, comp_fps):
 
 # adapted from
 #  https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/eval_utils.py
-def compute_cov(crys, gt_crys, struc_cutoff, comp_cutoff, comp_scaler, num_gen_crystals=None):
-    struc_fps = []
-    for struct in tqdm(crys, desc="getting struct fingerprints for generated..."):
-        # get the structure fingerprint only for a valid structure
-        struc_fps.append(get_struct_fingerprint(struct) if structure_validity(struct) else None)
-    comp_fps = []
-    for struct in tqdm(crys, desc="getting comp fingerprints for generated..."):
-        comp_fps.append(get_comp_fingerprint(struct))
-    gt_struc_fps = []
-    for struct in tqdm(gt_crys, desc="getting struct fingerprints for ground-truth..."):
-        gt_struc_fps.append(get_struct_fingerprint(struct))
-    gt_comp_fps = []
-    for struct in tqdm(gt_crys, desc="getting comp fingerprints for ground-truth..."):
-        gt_comp_fps.append(get_comp_fingerprint(struct))
+def compute_cov(gen_structs, true_structs, struc_cutoff, comp_cutoff, comp_scaler, num_gen_crystals=None):
+    struc_fps = [struct_fp for _, struct_fp, _ in gen_structs]
+    comp_fps = [comp_fp for _, _, comp_fp in gen_structs]
+    gt_struc_fps = [struct_fp for _, struct_fp, _ in true_structs]
+    gt_comp_fps = [comp_fp for _, _, comp_fp in true_structs]
 
     assert len(struc_fps) == len(comp_fps)
     assert len(gt_struc_fps) == len(gt_comp_fps)
@@ -249,10 +242,10 @@ def get_match_rate_and_rms(gen_structs, true_structs, matcher):
 
 # adapted from
 #  https://github.com/jiaor17/DiffCSP/blob/ee131b03a1c6211828e8054d837caa8f1a980c3e/scripts/compute_metrics.py
-def get_unconditional_metrics(gen_structs, true_structs, comp_scaler, cov_cutoffs, n_samples=1000):
+def get_unconditional_metrics(gen_structs, gen_comps, true_structs, n_gen, comp_scaler, cov_cutoffs, n_samples=1000):
     valid_structs = []
-    for struct in tqdm(gen_structs, desc="getting valid structures..."):
-        if is_valid_unconditional(struct):
+    for struct, struct_fp, _ in tqdm(gen_structs, desc="getting valid structures..."):
+        if is_valid_unconditional(struct, struct_fp):
             valid_structs.append(struct)
     if len(valid_structs) >= n_samples:
         sampled_indices = np.random.choice(len(valid_structs), n_samples, replace=False)
@@ -262,27 +255,31 @@ def get_unconditional_metrics(gen_structs, true_structs, comp_scaler, cov_cutoff
             f"Insufficient valid crystals in the generated set: {len(valid_structs)}/{n_samples}")
 
     n_comp_valid = 0
-    for struct in tqdm(gen_structs, desc="counting comp valid..."):
-        if smact_validity(struct):
+    for comp in tqdm(gen_comps, desc="counting comp valid..."):
+        # even if a structure is unreasonable or invalid,
+        #  the generated composition might still be valid
+        if smact_validity(
+            atom_types=[str(elem) for elem, n in comp.items() for _ in range(int(n))]
+        ):
             n_comp_valid += 1
-    comp_valid = n_comp_valid / len(gen_structs)
+    comp_valid = n_comp_valid / n_gen
     n_struct_valid = 0
-    for struct in tqdm(gen_structs, desc="counting struct valid..."):
+    for struct, _, _ in tqdm(gen_structs, desc="counting struct valid..."):
         if structure_validity(struct):
             n_struct_valid += 1
-    struct_valid = n_comp_valid / len(gen_structs)
-    valid = len(valid_structs) / len(gen_structs)
+    struct_valid = n_struct_valid / n_gen
+    valid = len(valid_structs) / n_gen
     valid_dict = {"comp_valid": comp_valid, "struct_valid": struct_valid, "valid": valid}
 
     print("computing wdist_density...")
     pred_densities = [struct.density for struct in valid_samples]
-    gt_densities = [struct.density for struct in true_structs]
+    gt_densities = [struct.density for struct, _, _ in true_structs]
     wdist_density = wasserstein_distance(pred_densities, gt_densities)
     wdist_density_dict = {"wdist_density": wdist_density}
 
     print("computing wdist_num_elems...")
     pred_nelems = [len(set(struct.species)) for struct in valid_samples]
-    gt_nelems = [len(set(struct.species)) for struct in true_structs]
+    gt_nelems = [len(set(struct.species)) for struct, _, _ in true_structs]
     wdist_num_elems = wasserstein_distance(pred_nelems, gt_nelems)
     wdist_num_elems_dict = {"wdist_num_elems": wdist_num_elems}
 
@@ -300,6 +297,7 @@ def get_unconditional_metrics(gen_structs, true_structs, comp_scaler, cov_cutoff
 
     metrics = {}
     metrics.update(valid_dict)
+    metrics.update({"n_sensible": len(gen_structs)})
     metrics.update(wdist_density_dict)
     # metrics.update(wdist_prop_dict)  # TODO
     metrics.update(wdist_num_elems_dict)
@@ -382,17 +380,46 @@ def get_structs(id_to_gen_cifs, id_to_true_cifs, n_gens, length_lo, length_hi, a
     return gen_structs, true_structs
 
 
-def get_structs_unconditional(id_to_gen_cifs, length_lo, length_hi, angle_lo, angle_hi):
+def get_gen_comps(id_to_gen_cifs):
+    gen_comps = []
+    for cifs in tqdm(id_to_gen_cifs.values(), desc="extracting generated compositions from CIFs..."):
+        cif = cifs[0]
+        try:
+            data_formula = extract_data_formula(cif)
+            comp = Composition(data_formula)
+            if len(comp) == 0:
+                continue
+            gen_comps.append(comp)
+        except Exception:
+            pass
+    return gen_comps
+
+
+def get_gen_structs_unconditional(id_to_gen_cifs, length_lo, length_hi, angle_lo, angle_hi):
     gen_structs = []
-    for id, cifs in tqdm(id_to_gen_cifs.items(), desc="converting CIFs to Structures..."):
+    for cifs in tqdm(id_to_gen_cifs.values(), desc="converting CIFs to Structures and fingerprints..."):
         cif = cifs[0]
         try:
             if not is_sensible(cif, length_lo, length_hi, angle_lo, angle_hi):
                 continue
-            gen_structs.append(Structure.from_str(cif, fmt="cif"))
+            struct = Structure.from_str(cif, fmt="cif")
+            # get the structure fingerprint only for a valid structure
+            struct_fp = get_struct_fingerprint(struct) if structure_validity(struct) else None
+            comp_fp = get_comp_fingerprint(struct)
+            gen_structs.append((struct, struct_fp, comp_fp))
         except Exception:
             pass
     return gen_structs
+
+
+def get_true_structs_unconditional(id_to_true_cifs):
+    true_structs = []
+    for cif in tqdm(id_to_true_cifs.values(), desc="converting true CIFs to Structures and fingerprints..."):
+        struct = Structure.from_str(cif, fmt="cif")
+        struct_fp = get_struct_fingerprint(struct)
+        comp_fp = get_comp_fingerprint(struct)
+        true_structs.append((struct, struct_fp, comp_fp))
+    return true_structs
 
 
 """
@@ -460,11 +487,13 @@ if __name__ == "__main__":
             means=np.array(comp_scaler_means),
             stds=np.array(comp_scaler_stds),
         )
-        gen_structs = get_structs_unconditional(
+        gen_structs = get_gen_structs_unconditional(
             id_to_gen_cifs, length_lo, length_hi, angle_lo, angle_hi
         )
-        true_structs = [Structure.from_str(cif, fmt="cif") for cif in id_to_true_cifs.values()]
-        metrics = get_unconditional_metrics(gen_structs, true_structs, comp_scaler, cov_cutoffs)
+        gen_comps = get_gen_comps(id_to_gen_cifs)
+        true_structs = get_true_structs_unconditional(id_to_true_cifs)
+        n_gens = len(id_to_gen_cifs)
+        metrics = get_unconditional_metrics(gen_structs, gen_comps, true_structs, n_gens, comp_scaler, cov_cutoffs)
     else:
         gen_structs, true_structs = get_structs(
             id_to_gen_cifs, id_to_true_cifs, n_gens, length_lo, length_hi, angle_lo, angle_hi
