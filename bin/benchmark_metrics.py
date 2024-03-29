@@ -98,7 +98,10 @@ def get_comp_fingerprint(struct):
     atom_types = [str(specie) for specie in struct.species]
     elem_counter = Counter(atom_types)
     comp = Composition(elem_counter)
-    return CompFP.featurize(comp)
+    fp = CompFP.featurize(comp)
+    if np.isnan(fp).any():
+        return None
+    return fp
 
 
 def get_struct_fingerprint(struct):
@@ -162,6 +165,10 @@ def compute_cov(gen_structs, true_structs, struc_cutoff, comp_cutoff, comp_scale
         num_gen_crystals = len(struc_fps)
 
     struc_fps, comp_fps = filter_fps(struc_fps, comp_fps)
+    # there may be odd cases when ground-truth CIFs may result in
+    #  fingerprints with nan values; in those cases, we return None
+    #  instead of the fingerprint, and consolidate those entries here
+    gt_struc_fps, gt_comp_fps = filter_fps(gt_struc_fps, gt_comp_fps)
 
     comp_fps = comp_scaler.transform(comp_fps)
     gt_comp_fps = comp_scaler.transform(gt_comp_fps)
