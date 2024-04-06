@@ -85,6 +85,15 @@ pip install torch==2.0.1
 _NOTE: You may need to perform extra, or alternate steps to install PyTorch on your particular system. See the 
 [PyTorch documentation](https://pytorch.org/get-started/locally/) for more information._
 
+Finally, install the `crystallm` module from the root of the cloned project:
+
+```shell
+pip install -e .
+```
+
+This command will install the `crystallm` module in editable mode, allowing for changes in the module to be 
+immediately available without re-installation.
+
 ## Obtaining the Training Data
 
 ### Downloading the Original CIF Files
