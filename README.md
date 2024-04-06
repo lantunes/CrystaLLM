@@ -91,8 +91,7 @@ Finally, install the `crystallm` module from the root of the cloned project:
 pip install -e .
 ```
 
-This command will install the `crystallm` module in editable mode, allowing for changes in the module to be 
-immediately available without re-installation.
+This command will install the `crystallm` module in editable mode.
 
 ## Obtaining the Training Data
 
