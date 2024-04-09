@@ -265,10 +265,13 @@ def get_unconditional_metrics(gen_structs, gen_comps, true_structs, n_gen, comp_
     for comp in tqdm(gen_comps, desc="counting comp valid..."):
         # even if a structure is unreasonable or invalid,
         #  the generated composition might still be valid
-        if smact_validity(
-            atom_types=[str(elem) for elem, n in comp.items() for _ in range(int(n))]
-        ):
-            n_comp_valid += 1
+        try:
+            if smact_validity(
+                atom_types=[str(elem) for elem, n in comp.items() for _ in range(int(n))]
+            ):
+                n_comp_valid += 1
+        except Exception:
+            pass
     comp_valid = n_comp_valid / n_gen
     n_struct_valid = 0
     for struct, _, _ in tqdm(gen_structs, desc="counting struct valid..."):
