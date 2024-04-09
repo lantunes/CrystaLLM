@@ -1,5 +1,3 @@
-import sys
-sys.path.append(".")
 import argparse
 from tqdm import tqdm
 import gzip
