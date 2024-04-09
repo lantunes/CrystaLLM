@@ -1,5 +1,5 @@
 pandas==1.5.3
-pymatgen==2023.3.23
+pymatgen>=2023.3.23
 numpy==1.24.2
 scikit-learn==1.2.2
 tqdm==4.65.0
