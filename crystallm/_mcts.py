@@ -147,6 +147,7 @@ class MCTSEvaluator:
         self._num_valid += 1
 
         try:
+            print(self._scorer)
             print("invoking external scorer...")
             score = self._scorer.score(cif)
             print(f"external scorer returned score: {score}")
@@ -154,7 +155,7 @@ class MCTSEvaluator:
             print(f"exception while scoring: {e}")
             print(traceback.format_exc())
             return -1.0
-
+        print(score)
         if math.isnan(score):
             print(f"reward cannot be computed as score is nan")
             return -1.0

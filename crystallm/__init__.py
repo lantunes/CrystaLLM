@@ -38,6 +38,7 @@ from ._scorer import (
     CIFScorer,
     RandomScorer,
     ZMQScorer,
+    PytorchChgnetScorer,
 )
 
 from ._configuration import parse_config
