@@ -1,5 +1,3 @@
-import sys
-sys.path.append(".")
 import os
 from dataclasses import dataclass
 
