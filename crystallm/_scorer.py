@@ -71,7 +71,7 @@ class ZMQScorer(CIFScorer):
         except zmq.Again as e:
             raise TimeoutError("ZeroMQ request timed out") from e
 
-class PytorchChgnetScorer(CIFScorer):
+class CHGNetScorer(CIFScorer):
 
     def __init__(self,host_device, scorer_device, model_name):
         """

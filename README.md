@@ -505,7 +505,7 @@ algorithm.
   bond_length_acceptability_cutoff: float = 1.0
   reward_k: float = 2.0  # the reward constant
   mcts_out_dir: str = "mcts"  # path to the directory where generated CIF files will be stored
-  scorer: str = "zmq"  # supported values: 'zmq', 'random'
+  scorer: str = "zmq"  # supported values: 'zmq', 'random', `CHGnet`
   scorer_host: str = "localhost"  # required if `scorer` is 'zmq'
   scorer_port: int = 5555  # required if `scorer` is 'zmq'
   use_context_sensitive_tree_builder: bool = True
@@ -514,6 +514,8 @@ algorithm.
   n_space_groups: int = 0
   bypass_only_child: bool = False
   n_rollouts: int = 1  # the number of rollouts to perform per simulation
+  scorer_device: str = "cpu" # required, if using `CHGnet`, valida values are: `cpu` and `cuda`
+  chgnet_model_name: str = "0.3.0" # reqruied if `scorer` is `CHGnet`
   ```
 
 </details>
@@ -548,6 +550,10 @@ true scorer, which assigns a score based on the quality of the generated CIF, sh
 obtaining the score from another process, via the ZMQ library, and in such a case, the `scorer` would be assigned a 
 value of `zmq`. See [this script](resources/alignn_zmq_example.py) for an example of setting up 
 [ALIGNN](https://github.com/usnistgov/alignn) to listen for and respond to prediction requests using ZMQ.
+
+If you want to use scorer without ZMQ, `CHGNetScorer` is provided. To avoid memory overflow on a single GPU, CHGNet scorer option
+is built to do inference on a separate device (`cpu` or `cuda:1`). However, you need to install `CHGNet` to use this feature.
+For installation, you can `pip install chgnet`. More details, please refer to [CHGNet official website](https://chgnet.lbl.gov/).
 
 ### Using a Pre-trained Model
 
