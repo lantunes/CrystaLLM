@@ -22,6 +22,53 @@ from crystallm import (
     GPTConfig,
 )
 
+import wandb, datetime
+import torch.nn as nn
+
+def initialize_weights(model):
+    """
+    Initializes weights for the layers in the model.
+    Modify this function based on how you want to initialize the remaining weights.
+    """
+    for m in model.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+def custom_load_model_weights(model, loaded_state_dict, name='block_size'):
+    """
+    model: The model instance to load the weights into
+    loaded_state_dict: The state dict loaded from the checkpoint
+    """
+    model_state_dict = model.state_dict()
+
+    for name, param in loaded_state_dict.items():
+        if name in model_state_dict:
+            if param.size()[0] != model_state_dict[name].size()[0]:
+                new_param = model_state_dict[name].clone().detach()
+                min_dim = min(param.size(0), new_param.size(0))
+                new_param[:min_dim] = param[:min_dim]
+                # Optionally, initialize the rest of the new_param here if needed
+                # For demonstration, let's initialize with zeros
+                # In practice, you might want to use a specific initialization method
+                if param.size(0) < new_param.size(0):
+                    # Initialize the remaining weights
+                    # This is a simple zero initialization for demonstration
+                    # You may replace it with any specific initialization method as needed
+                    initialize_weights(new_param[min_dim:])
+                model_state_dict[name] = new_param
+            else:
+                model_state_dict[name] = param
+        else:
+            print(f"Skipping {name} as it's not in the model's state dict")
+
+    model.load_state_dict(model_state_dict)
+
+# Example usage:
+# Assuming 'loaded_state_dict' is your loaded checkpoint state dict
+# and 'model' is your model instance.
+# custom_load_model_weights(model, loaded_state_dict)
 
 @dataclass
 class TrainDefaults:
@@ -91,14 +138,25 @@ def read_start_indices(
 
 
 if __name__ == "__main__":
+    # import argparse
+    # parser = argparse.ArgumentParser(description="Train the model.")
+    # parser.add_argument("--run_name", type=str, default=None, help="Name of the run")
+    # args = parser.parse_args()
+    # run_name = args.run_name + datetime.datetime.now().strftime("%y%m%d-%H%M%S") if args.run_name else None
+    
     C = parse_config(TrainDefaults)
-
+    # run name = scratch/resume + datetime
+    # if run_name is None:
+    run_name = C.init_from + datetime.datetime.now().strftime("%y%m%d-%H%M%S")
     print("Using configuration:")
     print(OmegaConf.to_yaml(C))
 
     print(f"Creating {C.out_dir}...")
     os.makedirs(C.out_dir, exist_ok=True)
-
+    # copy and past config file to out_dir
+    with open(os.path.join(C.out_dir, "config.yaml"), "w") as f:
+        f.write(OmegaConf.to_yaml(C))
+    #breakpoint()
     torch.manual_seed(1337)
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
@@ -112,7 +170,7 @@ if __name__ == "__main__":
 
     train_data = np.memmap(os.path.join(C.dataset, "train.bin"), dtype=np.uint16, mode="r")
     val_data = np.memmap(os.path.join(C.dataset, "val.bin"), dtype=np.uint16, mode="r") if C.validate else None
-
+    #breakpoint()
     cif_start_indices = read_start_indices(
         max_start_index=len(train_data) - C.block_size,
         data_dir=C.dataset,
@@ -133,11 +191,12 @@ if __name__ == "__main__":
         on_condition=C.underrep_p > 0,
         required=True,
     )
-
+    # breakpoint()
     def get_batch(split):
         data = train_data if split == "train" else val_data
 
         ix = torch.randint(len(data) - C.block_size, (C.batch_size,))
+        ix_ = ix.clone()
         if split == "train":
             if C.underrep_p is not None and np.random.random() < C.underrep_p:
                 ix = cif_start_indices_underrep[torch.randperm(len(cif_start_indices_underrep))[:C.batch_size]]
@@ -154,6 +213,7 @@ if __name__ == "__main__":
             x, y = x.pin_memory().to(C.device, non_blocking=True), y.pin_memory().to(C.device, non_blocking=True)
         else:
             x, y = x.to(C.device), y.to(C.device)
+       #breakpoint()
         return x, y
 
     iter_num = 0
@@ -169,6 +229,7 @@ if __name__ == "__main__":
 
     model_args = dict(n_layer=C.n_layer, n_head=C.n_head, n_embd=C.n_embd, block_size=C.block_size,
                       bias=C.bias, vocab_size=None, dropout=C.dropout)
+    # breakpoint()
     if C.init_from == "scratch":
         print("Initializing a new model from scratch...")
         if meta_vocab_size is None:
@@ -183,6 +244,7 @@ if __name__ == "__main__":
         checkpoint_model_args = checkpoint["model_args"]
         # force these config attributes to be equal otherwise we can't even resume training;
         #  the rest of the attributes (e.g. dropout) can stay as desired
+        # breakpoint()
         for k in ["n_layer", "n_head", "n_embd", "block_size", "bias", "vocab_size"]:
             model_args[k] = checkpoint_model_args[k]
         gptconf = GPTConfig(**model_args)
@@ -196,7 +258,7 @@ if __name__ == "__main__":
         model.load_state_dict(state_dict)
         iter_num = checkpoint["iter_num"]
         best_val_loss = checkpoint["best_val_loss"]
-
+    # breakpoint()
     # crop down the model block size if desired, using model surgery
     if C.block_size < model.config.block_size:
         model.crop_block_size(C.block_size)
@@ -246,10 +308,13 @@ if __name__ == "__main__":
         return C.min_lr + coeff * (C.learning_rate - C.min_lr)
 
     # training loop
+    #f"_bs{C.batch_size}_lr{C.learning_rate}_wd{C.weight_decay}"
+    wandb.init(project='adslab-llm', name=run_name)
     X, Y = get_batch("train")
     t0 = time.time()
     local_iter_num = 0  # number of iterations in the lifetime of this process
     running_mfu = -1.0
+
     while True:
 
         # determine and set the learning rate for this iteration
@@ -259,9 +324,12 @@ if __name__ == "__main__":
 
         # evaluate the loss on train/val sets and write checkpoints
         if iter_num % C.eval_interval == 0:
+            # Log losses to wandb
+            wandb.log({"val_loss": losses['val'], "step": iter_num})
+            #breakpoint()
             if C.validate:
                 losses = estimate_loss()
-                print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+                print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")               
             if (C.validate and losses["val"] < best_val_loss) or C.always_save_checkpoint:
                 best_val_loss = losses["val"] if C.validate else 0.
                 if iter_num > 0:
@@ -274,6 +342,7 @@ if __name__ == "__main__":
                         "config": dict(C),
                     }
                     print(f"saving checkpoint to {C.out_dir}...")
+                    #breakpoint()
                     torch.save(checkpoint, os.path.join(C.out_dir, "ckpt.pt"))
         if iter_num == 0 and C.eval_only:
             break
@@ -285,6 +354,7 @@ if __name__ == "__main__":
                 logits, loss = model(X, Y)
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
             X, Y = get_batch("train")
+            # breakpoint()
             # backward pass, with gradient scaling if training in fp16
             scaler.scale(loss).backward()
         # clip the gradient
@@ -307,6 +377,7 @@ if __name__ == "__main__":
                 mfu = model.estimate_mfu(C.batch_size * C.gradient_accumulation_steps, dt)
                 running_mfu = mfu if running_mfu == -1.0 else 0.9 * running_mfu + 0.1 * mfu
             print(f"iter {iter_num}: loss {lossf:.4f}, time {dt * 1000:.2f}ms, mfu {running_mfu * 100:.2f}%")
+            wandb.log({"loss": lossf, "mfu": running_mfu, "step": iter_num})
         iter_num += 1
         local_iter_num += 1
 

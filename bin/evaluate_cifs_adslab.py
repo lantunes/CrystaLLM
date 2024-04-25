@@ -52,8 +52,8 @@ def progress_listener(queue, n):
 
 def eval_cif(progress_queue, task_queue, result_queue, length_lo, length_hi, angle_lo, angle_hi, debug):
     tokenizer = CIFTokenizer()
-    n_atom_site_multiplicity_consistent = 0
-    n_space_group_consistent = 0
+    # n_atom_site_multiplicity_consistent = 0
+    # n_space_group_consistent = 0
     bond_length_reasonableness_scores = []
     is_valid_and_len = []
 
@@ -73,11 +73,11 @@ def eval_cif(progress_queue, task_queue, result_queue, length_lo, length_hi, ang
             if space_group_symbol is not None and space_group_symbol != "P 1":
                 cif = replace_symmetry_operators(cif, space_group_symbol)
 
-            if is_atom_site_multiplicity_consistent(cif):
-                n_atom_site_multiplicity_consistent += 1
+            # if is_atom_site_multiplicity_consistent(cif):
+            #     n_atom_site_multiplicity_consistent += 1
 
-            if is_space_group_consistent(cif):
-                n_space_group_consistent += 1
+            # if is_space_group_consistent(cif):
+            #     n_space_group_consistent += 1
 
             score = bond_length_reasonableness_score(cif)
             bond_length_reasonableness_scores.append(score)
@@ -93,18 +93,31 @@ def eval_cif(progress_queue, task_queue, result_queue, length_lo, length_hi, ang
             gen_vol = extract_volume(cif)
             data_formula = extract_data_formula(cif)
 
-            valid = is_valid(cif, bond_length_acceptability_cutoff=1.0)
+            # valid = is_valid(cif, bond_length_acceptability_cutoff=1.0)
+            validity = is_valid_adslab(cif)
+            structure_accuracy, energy_accuracy = is_accurate_adslab(cif, model, label)
+            adslab_structure_accuracy, cat_structure_accuracy, ads_structure_accuracy = structure_accuracy
 
-            is_valid_and_len.append((data_formula, space_group_symbol, valid, gen_len, implied_vol, gen_vol))
+
+            is_valid_and_len.append((data_formula, 
+                                     space_group_symbol, 
+                                     validity, 
+                                     adslab_structure_accuracy,
+                                     cat_structure_accuracy, 
+                                     ads_structure_accuracy,
+                                     gen_len, 
+                                     implied_vol, 
+                                     gen_vol))
 
         except Exception as e:
             if debug:
                 print(f"ERROR: {e}")
+
         progress_queue.put(1)
 
     result = (
         n_atom_site_multiplicity_consistent,
-        n_space_group_consistent,
+        # n_space_group_consistent,
         bond_length_reasonableness_scores,
         is_valid_and_len,
     )
@@ -142,7 +155,8 @@ if __name__ == "__main__":
     debug = args.debug
 
     cifs = read_generated_cifs(gen_cifs_path)
-    breakpoint()
+    # also get system id for further analysis
+    
     manager = mp.Manager()
     progress_queue = manager.Queue()
     task_queue = manager.Queue()
@@ -179,7 +193,7 @@ if __name__ == "__main__":
         n_space_group_consistent += n_space_group
         bond_length_reasonableness_scores.extend(scores)
         is_valid_and_lens.extend(is_valid_and_len)
-    breakpoint()
+
     n_valid = 0
     valid_gen_lens = []
     results_data = {

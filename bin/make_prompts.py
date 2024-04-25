@@ -5,6 +5,7 @@ import re
 import io
 import tarfile
 from tqdm import tqdm
+import random
 
 PATTERN_COMP = re.compile(r"(data_[^\n]*\n)", re.MULTILINE)
 PATTERN_COMP_SG = re.compile(r"(data_[^\n]*\n)loop_[\s\S]*?(_symmetry_space_group_name_H-M[^\n]*\n)", re.MULTILINE)
@@ -37,16 +38,22 @@ if __name__ == "__main__":
                              "It is recommended that the filename end in `.tar.gz`.")
     parser.add_argument("--with-spacegroup", action="store_true",
                         help="Include this flag if the prompts must contain the structure's space group.")
-
+    parser.add_argument("--sample-num", type=int, default=None, 
+                        help="Number of samples to extract from the entire dataset.")
     args = parser.parse_args()
 
     cifs_fname = args.name
     out_fname = args.out
     with_spacegroup = args.with_spacegroup
+    sample_num = args.sample_num
 
     print(f"loading data from {cifs_fname}...")
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
+
+    if sample_num:
+        # random sampling
+        cifs = random.sample(cifs, sample_num)
 
     # since these cifs are pre-processed, extract first lines, optionally up to space group
 

@@ -5,8 +5,23 @@ from ._metrics import (
     is_space_group_consistent,
     is_atom_site_multiplicity_consistent,
     is_formula_consistent,
+    is_formula_consistent_based_on_coords,
     is_sensible,
     is_valid,
+    evaluate_structure_similarity,
+)
+
+from ._adslab_metrics import (
+    check_indices_validity,
+    segregate_structure,
+    is_molecule,
+    is_fully_connected,
+    is_adsorbed,
+    is_bond_length_reasonable,
+    validate_ads_slab,
+    match_adsorbate_composition,
+    match_slab_composition_ratio,
+    load_and_evaluate_similarity
 )
 
 from ._model import (
@@ -21,6 +36,7 @@ from ._utils import (
     extract_data_formula,
     extract_formula_nonreduced,
     extract_formula_units,
+    extract_formula_based_on_coords,
     extract_numeric_property,
     extract_space_group_symbol,
     extract_volume,
@@ -32,6 +48,7 @@ from ._utils import (
     replace_symmetry_operators,
     round_numbers,
     semisymmetrize_cif,
+    load_labels,
 )
 
 from ._scorer import (

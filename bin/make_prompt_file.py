@@ -1,6 +1,14 @@
+import os, sys
 import argparse
 
 from pymatgen.core import Composition
+
+# Calculate the absolute path to the 'crystallm' directory
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Absolute dir the script is in
+crystallm_dir = os.path.abspath(os.path.join(script_dir, '..'))  # 'crystallm' is one level up
+
+# Add 'crystallm' directory to sys.path
+sys.path.append(crystallm_dir)
 
 from crystallm import get_atomic_props_block_for_formula
 

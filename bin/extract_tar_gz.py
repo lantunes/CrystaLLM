@@ -40,11 +40,11 @@ def main():
     parser = argparse.ArgumentParser(description="Extract a tar.gz file to a specified location")
     parser.add_argument("file_path", type=str, help="The path to the tar.gz file to be extracted")
     parser.add_argument("extract_path", type=str, help="The directory where the files will be extracted")
-    parser.add_argument("traj_path", type=str, help="The directory where the trajectory files are stored")
+    # parser.add_argument("traj_path", type=str, help="The directory where the trajectory files are stored")
     args = parser.parse_args()
 
     extract_tar_gz(args.file_path, args.extract_path)
-    save_traj_as_cif(args.extract_path, args.traj_path)
+    # save_traj_as_cif(args.extract_path, args.traj_path)
 
 if __name__ == "__main__":
     main()

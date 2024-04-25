@@ -17,8 +17,8 @@ from crystallm import (
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract learned embeddings.")
-    parser.add_argument("name", type=str, required=True,
-                        help="Path to the folder containing the model checkpoint file.")
+    parser.add_argument("name", type=str, 
+                        help="Path to the folder containing the model checkpoint file.") ## required=True,
     parser.add_argument("--dataset", type=str, required=True,
                         help="Path to the tokenized dataset file (.tar.gz).")
     parser.add_argument("--out", type=str, required=True,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     with tarfile.open(dataset_fname, "r:gz") as file:
         file_content_byte = file.extractfile(f"{base_path}/meta.pkl").read()
         meta = pickle.loads(file_content_byte)
-
+    breakpoint()
     tokenizer = CIFTokenizer()
 
     device = "cpu"
@@ -68,6 +68,7 @@ if __name__ == "__main__":
     with open(out_fname, "wt") as f:
         header = ["element"]
         header.extend([str(i) for i in range(dim)])
+        breakpoint()
         f.write("%s\n" % ",".join(header))
         if embedding_type == "atom":
             for elem, _ in sorted_elems:

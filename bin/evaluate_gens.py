@@ -9,8 +9,9 @@ import numpy as np
 import pandas as pd
 import re
 
-from pymatgen.core.structure import Composition
+from pymatgen.core.structure import Composition, Structure
 from pymatgen.io.cif import CifParser
+from pymatgen.analysis import structure_analyzer
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 crystallm_dir = os.path.abspath(os.path.join(script_dir, '..'))  
@@ -38,6 +39,7 @@ from crystallm import (
     is_molecule,
     is_fully_connected,
     is_adsorbed,
+    is_bond_length_reasonable,
     validate_ads_slab,
     match_adsorbate_composition,
     match_slab_composition_ratio,
@@ -167,14 +169,21 @@ def eval_structure(generated_cifs, generated_sids, metadata_path, traj_dir, save
         # breakpoint()
         bulk_indices, ads_indices = segregate_structure(adslab_structure, bulk_symbols, ads_symbols)
         # breakpoint()
+        bulk_structure = Structure.from_sites([adslab_structure[i] for i in bulk_indices])
+        symmetry_finder = structure_analyzer.SpacegroupAnalyzer(bulk_structure)
+        space_group = symmetry_finder.get_space_group_symbol()
+        breakpoint()
         '''
         CIF file information
         '''
         gen_len = len(tokenizer.tokenize_cif(cif))
-        space_group_symbol = extract_space_group_symbol(cif)
-        if space_group_symbol is not None and space_group_symbol != "P 1":
-            cif = replace_symmetry_operators(cif, space_group_symbol)
-        
+        try:
+            space_group_symbol = extract_space_group_symbol(cif)
+            if space_group_symbol is not None and space_group_symbol != "P 1":
+                cif = replace_symmetry_operators(cif, space_group_symbol)
+        except:
+            pass 
+
         a = extract_numeric_property(cif, "_cell_length_a")
         b = extract_numeric_property(cif, "_cell_length_b")
         c = extract_numeric_property(cif, "_cell_length_c")
@@ -182,8 +191,10 @@ def eval_structure(generated_cifs, generated_sids, metadata_path, traj_dir, save
         beta = extract_numeric_property(cif, "_cell_angle_beta")
         gamma = extract_numeric_property(cif, "_cell_angle_gamma")
         implied_vol = get_unit_cell_volume(a, b, c, alpha, beta, gamma)
-
-        gen_vol = extract_volume(cif)
+        try:
+            gen_vol = extract_volume(cif)
+        except:
+            gen_vol = None
         data_formula = extract_data_formula(cif)
         if "_miller_" in data_formula:
             data_formula = re.sub(r"_miller_\d+", "", data_formula)
@@ -198,7 +209,8 @@ def eval_structure(generated_cifs, generated_sids, metadata_path, traj_dir, save
         4. check the bond length reasonableness
         '''
         ads_valid = is_molecule(adslab_structure, ads_indices)
-        slab_connected = is_fully_connected(adslab_structure, bulk_indices)
+        #slab_connected = is_fully_connected(adslab_structure, bulk_indices)
+        slab_connected = is_bond_length_reasonable(adslab_structure, bulk_indices)
         adsorbed = is_adsorbed(adslab_structure, ads_indices)
         score = bond_length_reasonableness_score(cif, tolerance=0.3, h_factor=2.5)
         

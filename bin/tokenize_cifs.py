@@ -1,5 +1,6 @@
+import os
 import sys
-sys.path.append(".")
+# sys.path.append(".")
 import os
 import numpy as np
 import random
@@ -12,6 +13,13 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+# Calculate the absolute path to the 'crystallm' directory
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Absolute dir the script is in
+crystallm_dir = os.path.abspath(os.path.join(script_dir, '..'))  # 'crystallm' is one level up
+
+# Add 'crystallm' directory to sys.path
+sys.path.append(crystallm_dir)
 
 from crystallm import (
     CIFTokenizer,
@@ -67,12 +75,14 @@ if __name__ == "__main__":
                         help="Output directory to store processed files.")
     parser.add_argument("--workers", type=int, default=4,
                         help="Number of workers to use for processing.")
+    parser.add_argument("--max_token_length", type=int, default=None, help="Maximum token length to keep.")
     args = parser.parse_args()
 
     train_fname = args.train_fname
     val_fname = args.val_fname
     out_dir = args.out_dir
     workers = args.workers
+    max_token_length = args.max_token_length
 
     has_val = len(val_fname) > 0
 
@@ -111,18 +121,24 @@ if __name__ == "__main__":
     tokenized_cifs_train = []
     for job in jobs:
         tokenized_cifs_train.extend(job.get())
-
+    # breakpoint()
     queue.put("kill")
     pool.close()
     pool.join()
 
     lens = [len(t) for t in tokenized_cifs_train]
+    lens_train = lens.copy()
     unk_counts = [t.count("<unk>") for t in tokenized_cifs_train]
     print(f"train min tokenized length: {np.min(lens):,}")
     print(f"train max tokenized length: {np.max(lens):,}")
     print(f"train mean tokenized length: {np.mean(lens):.2f} +/- {np.std(lens):.2f}")
     print(f"train total unk counts: {np.sum(unk_counts)}")
-
+    if max_token_length:
+        filtered_lens_idx = [i for i, l in enumerate(lens) if l <= max_token_length]
+        tokenized_cifs_train = [tokenized_cifs_train[i] for i in filtered_lens_idx]
+        print(f"total train data number: {len(lens)}")
+        print(f"train tokenized length <= {max_token_length}: {len(tokenized_cifs_train):,}")
+    # breakpoint()
     if has_val:
         # tokenize the validation CIFs
         tokenized_cifs_val = tokenize(cifs_val)
@@ -133,7 +149,10 @@ if __name__ == "__main__":
         print(f"val max tokenized length: {np.max(lens):,}")
         print(f"val mean tokenized length: {np.mean(lens):.2f} +/- {np.std(lens):.2f}")
         print(f"val total unk counts: {np.sum(unk_counts)}")
-
+        if max_token_length:
+            filtered_lens_idx = [i for i, l in enumerate(lens) if l <= max_token_length]
+            tokenized_cifs_val = [tokenized_cifs_val[i] for i in filtered_lens_idx]
+    # breakpoint()
     # create a single stream of tokens that will be the dataset
     train_data = []
     for t in tqdm(tokenized_cifs_train, desc="concatenating train tokens..."):
@@ -143,7 +162,7 @@ if __name__ == "__main__":
         val_data = []
         for t in tqdm(tokenized_cifs_val, desc="concatenating val tokens..."):
             val_data.extend(t)
-
+    #breakpoint()
     print("encoding...")
     tokenizer = CIFTokenizer()
     train_ids = tokenizer.encode(train_data)
@@ -152,7 +171,7 @@ if __name__ == "__main__":
         val_ids = tokenizer.encode(val_data)
         print(f"val has {len(val_ids):,} tokens")
     print(f"vocab size: {len(tokenizer.token_to_id)}")
-
+    #breakpoint()
     print("exporting to .bin files...")
     train_ids = np.array(train_ids, dtype=np.uint16)
     train_ids.tofile(os.path.join(out_dir, "train.bin"))

@@ -1,12 +1,14 @@
 import math
 import re
 import pandas as pd
+import os
 
+from ase.io import read
 from pymatgen.core import Composition
-from pymatgen.io.cif import CifBlock
+from pymatgen.io.cif import CifBlock, CifParser
 from pymatgen.symmetry.groups import SpaceGroup
 from pymatgen.core.operations import SymmOp
-
+from pymatgen.io.ase import AseAtomsAdaptor
 
 def get_unit_cell_volume(a, b, c, alpha_deg, beta_deg, gamma_deg):
     alpha_rad = math.radians(alpha_deg)
@@ -81,7 +83,6 @@ def get_atomic_props_block(composition, oxi=False):
 
     return str(CifBlock(data, loops, "")).replace("data_\n", "")
 
-
 def replace_symmetry_operators(cif_str, space_group_symbol):
     space_group = SpaceGroup(space_group_symbol)
     symmetry_ops = space_group.symmetry_ops
@@ -89,11 +90,12 @@ def replace_symmetry_operators(cif_str, space_group_symbol):
     loops = []
     data = {}
     symmops = []
+    #breakpoint()
     for op in symmetry_ops:
         v = op.translation_vector
         symmops.append(SymmOp.from_rotation_and_translation(op.rotation_matrix, v))
-
-    ops = [op.as_xyz_string() for op in symmops]
+    #breakpoint()
+    ops = [op.as_xyz_str() for op in symmops] #[op.as_xyz_string() for op in symmops]
     data["_symmetry_equiv_pos_site_id"] = [f"{i}" for i in range(1, len(ops) + 1)]
     data["_symmetry_equiv_pos_as_xyz"] = ops
 
@@ -130,7 +132,12 @@ def extract_formula_units(cif_str):
 
 
 def extract_data_formula(cif_str):
-    match = re.search(r"data_([A-Za-z0-9]+)\n", cif_str)
+    # breakpoint()
+    match = re.search(r"data_([A-Za-z0-9]+)\n", cif_str) 
+    #åbreakpoint()
+    if match is None:
+        match = re.search(r"data_([A-Za-z0-9<>-]+_miller_[0-9]+)", cif_str) # update to process miller index incorporated data
+    # breakpoint()
     if match:
         return match.group(1)
     raise Exception(f"could not find data_ in:\n{cif_str}")
@@ -142,6 +149,21 @@ def extract_formula_nonreduced(cif_str):
         return match.group(2) if match.group(2) else match.group(3)
     raise Exception(f"could not extract _chemical_formula_sum value from:\n{cif_str}")
 
+def extract_formula_based_on_coords(cif_str):
+    parser = CifParser.from_str(cif_str)
+    cif_data = parser.as_dict()
+
+    # Extracting formula from CIF file by counting listed atoms
+    atom_counts = {}
+    for site in cif_data[list(cif_data.keys())[0]]["_atom_site_type_symbol"]:
+        atom = site.split()[0]
+        if atom in atom_counts:
+            atom_counts[atom] += 1
+        else:
+            atom_counts[atom] = 1
+    formula_from_atoms = ''.join([f"{atom}{count}" for atom, count in atom_counts.items()])
+
+    return formula_from_atoms
 
 def semisymmetrize_cif(cif_str):
     return re.sub(
@@ -152,15 +174,24 @@ def semisymmetrize_cif(cif_str):
     )
 
 
-def replace_data_formula_with_nonreduced_formula(cif_str):
+def replace_data_formula_with_nonreduced_formula(cif_str, miller_index=None):
     pattern = r"_chemical_formula_sum\s+(.+)\n"
     pattern_2 = r"(data_)(.*?)(\n)"
     match = re.search(pattern, cif_str)
     if match:
         chemical_formula = match.group(1)
         chemical_formula = chemical_formula.replace("'", "").replace(" ", "")
-
-        modified_cif = re.sub(pattern_2, r'\1' + chemical_formula + r'\3', cif_str)
+        # Format miller_index if it's not None; otherwise, leave it as an empty string
+        if miller_index is not None:
+            # Ensure miller_index is a string and formatted correctly
+            #miller_index_str = "_" + "_".join(map(str, miller_index)) if isinstance(miller_index, (list, tuple)) else "_" + str(miller_index)
+            #miller_index_str = "_miller_" + str(miller_index) if isinstance(miller_index, (list, tuple)) else "_" + str(miller_index)
+            miller_index_str = "_miller_" + "".join(str(abs(x)) for x in miller_index) if isinstance(miller_index, (list, tuple)) else "_" + str(miller_index)
+        else:
+            miller_index_str = ""
+        # Include miller_index in the replacement string if available
+        modified_cif = re.sub(pattern_2, r'\1' + chemical_formula + miller_index_str + r'\3', cif_str)
+        # modified_cif = re.sub(pattern_2, r'\1' + chemical_formula + r'\3', cif_str)
 
         return modified_cif
     else:
@@ -233,3 +264,33 @@ def embeddings_from_csv(embedding_csv):
         elements[i]: embeds_array[i] for i in range(len(embeds_array))
     }
     return embedding_data
+
+
+def load_labels(sid, directory):
+    # preprocess the system id
+    sid = re.match(r'random\d+', sid).group()
+    # for directory in directories:
+    label_file = os.path.join(directory, f'{sid}.traj')
+    if os.path.exists(label_file):
+        atoms = read(label_file, '-1')
+        structure = AseAtomsAdaptor.get_structure(atoms)
+        return structure, atoms.get_potential_energy()
+    raise FileNotFoundError(f'Trajectory file for system ID {sid} not found in any of the specified directories.')
+
+# def sid_to_structure(sid, directories):
+#     # Preprocess the system ID
+#     sid = re.match(r'random\d+', sid).group()
+    
+#     # Iterate over each directory in the list
+#     for directory in directories:
+#         # Search for trajectory file in the current directory
+#         traj_file = os.path.join(directory, f'{sid}.traj')
+#         if os.path.exists(traj_file):
+#             # Read the last frame of the trajectory using ASE
+#             atoms = read(traj_file, '-1')  # Read the last frame
+#             # Convert ASE atoms to Pymatgen Structure
+#             structure = AseAtomsAdaptor.get_structure(atoms)
+#             return structure  # Return structure if found
+    
+#     # If trajectory file is not found in any directory
+#     raise FileNotFoundError(f'Trajectory file for system ID {sid} not found in any of the specified directories.')

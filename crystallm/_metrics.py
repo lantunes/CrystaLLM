@@ -4,11 +4,12 @@ from pymatgen.analysis.local_env import CrystalNN
 from pymatgen.core import Composition, Structure
 from pymatgen.io.cif import CifParser
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.analysis.structure_matcher import StructureMatcher
 
-from ._utils import extract_data_formula
+from ._utils import extract_data_formula, extract_formula_based_on_coords
 
 
-def bond_length_reasonableness_score(cif_str, tolerance=0.32, h_factor=2.5):
+def bond_length_reasonableness_score(cif_str, tolerance=0.3, h_factor=2.5):
     """
     If a bond length is 30% shorter or longer than the sum of the atomic radii, the score is lower.
     """
@@ -69,7 +70,7 @@ def bond_length_reasonableness_score(cif_str, tolerance=0.32, h_factor=2.5):
 
 def is_space_group_consistent(cif_str):
     structure = Structure.from_str(cif_str, fmt="cif")
-    parser = CifParser.from_string(cif_str)
+    parser = CifParser.from_str(cif_str) #from_string(cif_str)
     cif_data = parser.as_dict()
 
     # Extract the stated space group from the CIF file
@@ -88,7 +89,7 @@ def is_space_group_consistent(cif_str):
 
 
 def is_formula_consistent(cif_str):
-    parser = CifParser.from_string(cif_str)
+    parser = CifParser.from_str(cif_str) #from_string(cif_str)
     cif_data = parser.as_dict()
 
     formula_data = Composition(extract_data_formula(cif_str))
@@ -98,9 +99,33 @@ def is_formula_consistent(cif_str):
     return formula_data.reduced_formula == formula_sum.reduced_formula == formula_structural.reduced_formula
 
 
+def is_formula_consistent_based_on_coords(cif_str):
+    parser = CifParser.from_str(cif_str)
+    cif_data = parser.as_dict()
+
+    # Extracting formula from CIF file by counting listed atoms
+    # atom_counts = {}
+    # for site in cif_data[list(cif_data.keys())[0]]["_atom_site_label"]:
+    #     atom = site.split()[0]
+    #     if atom in atom_counts:
+    #         atom_counts[atom] += 1
+    #     else:
+    #         atom_counts[atom] = 1
+    # formula_from_atoms = ''.join([f"{atom}{count}" for atom, count in atom_counts.items()])
+
+    # Getting formula sum and structural formula from CIF file
+    formula_input = extract_data_formula(cif_str)
+    formula_input = re.sub(r"_miller_\d+", "", formula_input)
+    #formula_sum = cif_data[list(cif_data.keys())[0]]["_chemical_formula_sum"]
+    #formula_structural = cif_data[list(cif_data.keys())[0]]["_chemical_formula_structural"]
+    formula_from_atoms = extract_formula_based_on_coords(cif_str)
+    # Comparing formulas
+    #return Composition(formula_from_atoms).reduced_formula == Composition(formula_sum).reduced_formula == Composition(formula_structural).reduced_formula
+    return Composition(formula_input).reduced_formula == Composition(formula_from_atoms).reduced_formula
+
 def is_atom_site_multiplicity_consistent(cif_str):
     # Parse the CIF string
-    parser = CifParser.from_string(cif_str)
+    parser = CifParser.from_str(cif_str) #from_string(cif_str)
     cif_data = parser.as_dict()
 
     # Extract the chemical formula sum from the CIF data
@@ -123,6 +148,20 @@ def is_atom_site_multiplicity_consistent(cif_str):
     # Validate if the expected and actual atom counts match
     return expected_atoms == actual_atoms
 
+def evaluate_structure_similarity(cif_str, label_structure):
+    parser = CifParser.from_str(cif_str)
+    gen_structure = parser.get_structures()[0]
+    sm = StructureMatcher()
+    if sm.fit(gen_structure, label_structure):
+        rmsd = sm.get_rmsd()
+        # dist = sm.get_rms_dist()
+        return rmsd
+    else:
+        return float('inf')
+    #aligned_structures = sm.fit(gen_structure, label_structure)
+    #rmsd = aligned_structures[0].rmsd(aligned_structures[1])
+    
+    
 
 def is_sensible(cif_str, length_lo=0.5, length_hi=1000., angle_lo=10., angle_hi=170.):
     cell_length_pattern = re.compile(r"_cell_length_[abc]\s+([\d\.]+)")

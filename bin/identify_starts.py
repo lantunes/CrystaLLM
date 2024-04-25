@@ -36,12 +36,15 @@ if __name__ == "__main__":
     parser.add_argument("--underrepresented_out_fname", type=str,
                         help="Optional: Path to the file that will contain the under-represented start indices as a "
                              "serialized Python list. Recommended extension is `.pkl`.")
+    parser.add_argument("--data_split", type=str, default="train",
+                        help="The data split to use. Default is 'train'.")
     args = parser.parse_args()
 
     dataset_fname = args.dataset_fname
     out_fname = args.out_fname
     underrepresented_fname = args.underrepresented_fname
     underrepresented_out_fname = args.underrepresented_out_fname
+    data_split = args.data_split
 
     base_path = os.path.splitext(os.path.basename(dataset_fname))[0]
     base_path = os.path.splitext(base_path)[0]
@@ -50,7 +53,7 @@ if __name__ == "__main__":
         file_content_byte = file.extractfile(f"{base_path}/meta.pkl").read()
         meta = pickle.loads(file_content_byte)
 
-        extracted = file.extractfile(f"{base_path}/train.bin")
+        extracted = file.extractfile(f"{base_path}/{data_split}.bin")
         train_ids = np.frombuffer(extracted.read(), dtype=np.uint16)
 
     underrepresented_set = None

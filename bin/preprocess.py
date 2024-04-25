@@ -42,22 +42,24 @@ def progress_listener(queue, n):
             break
 
 
-def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
+def augment_cif(progress_queue, task_queue, result_queue, id_to_miller_index, oxi, decimal_places):
     augmented_cifs = []
-
+    #breakpoint()
     while not task_queue.empty():
         try:
             id, cif_str = task_queue.get_nowait()
         except Empty:
             break
-
+        
+        miller_index = id_to_miller_index.get(id) if id_to_miller_index else None
+        # import pdb; pdb.set_trace()
         try:
             formula_units = extract_formula_units(cif_str)
             # exclude CIFs with formula units (Z) = 0, which are erroneous
             if formula_units == 0:
                 raise Exception()
-
-            cif_str = replace_data_formula_with_nonreduced_formula(cif_str)
+            #breakpoint()
+            cif_str = replace_data_formula_with_nonreduced_formula(cif_str, miller_index)
             cif_str = semisymmetrize_cif(cif_str)
             cif_str = add_atomic_props_block(cif_str, oxi)
             cif_str = round_numbers(cif_str, decimal_places=decimal_places)
@@ -66,7 +68,7 @@ def augment_cif(progress_queue, task_queue, result_queue, oxi, decimal_places):
             pass
 
         progress_queue.put(1)
-
+        #breakpoint()
     result_queue.put(augmented_cifs)
 
 
@@ -88,7 +90,8 @@ if __name__ == "__main__":
                              "Default is 4.")
     parser.add_argument("--workers", type=int, default=4,
                         help="The number of workers to use for processing. Default is 4.")
-
+    parser.add_argument("--meta-path", type=str, default=None, 
+                        help="Path to the metadata file connecting ids and system-specific information.")
     args = parser.parse_args()
 
     cifs_fname = args.name
@@ -96,22 +99,30 @@ if __name__ == "__main__":
     oxi = args.oxi
     decimal_places = args.decimal_places
     workers = args.workers
+    meta_path = args.meta_path
 
     print(f"loading data from {cifs_fname}...")
     with gzip.open(cifs_fname, "rb") as f:
         cifs = pickle.load(f)
+    # load metadata file
+    if meta_path:
+        with open(meta_path, "rb") as f:
+            meta = pickle.load(f)
+        id_to_miller_index = {k: meta[k]['miller_index'] for k in meta.keys()}
+    else:
+        id_to_miller_index = None    
 
     manager = mp.Manager()
     progress_queue = manager.Queue()
     task_queue = manager.Queue()
     result_queue = manager.Queue()
-
+    # breakpoint()
     for id, cif in cifs:
-        task_queue.put((id, cif))
+        task_queue.put((id, cif)) # id: file name, cif: content of the file
 
     watcher = mp.Process(target=progress_listener, args=(progress_queue, len(cifs),))
 
-    processes = [mp.Process(target=augment_cif, args=(progress_queue, task_queue, result_queue, oxi, decimal_places))
+    processes = [mp.Process(target=augment_cif, args=(progress_queue, task_queue, result_queue, id_to_miller_index, oxi, decimal_places))
                  for _ in range(workers)]
     processes.append(watcher)
 
