@@ -12,7 +12,7 @@ from lib import get_cif_tokenizer, bond_length_reasonableness_score, is_formula_
     replace_symmetry_operators, remove_atom_props_block
 
 import modal
-from modal import Image, Stub, Mount, method
+from modal import Image, App, Mount, method, enter, exit
 
 image = (
     Image.debian_slim(python_version="3.9")
@@ -27,13 +27,13 @@ image = (
         "pyzmq==25.1.1",
     )
 )
-stub = Stub(
+app = App(
     name="CrystaLLM",
     image=image,
 )
 
 
-@stub.cls(
+@app.cls(
     volumes={"/crystallm_volume": modal.Volume.from_name("crystallm-volume_2")},
     mounts=[
         Mount.from_local_dir("./modal_app_config", remote_path="/root"),
@@ -44,7 +44,8 @@ stub = Stub(
     timeout=60,
 )
 class CrystaLLMModel:
-    def __enter__(self):
+    @enter()
+    def run_on_container_startup(self):
         print("enter called: initializing model...")
         config = self._load_config()
 
@@ -267,11 +268,12 @@ class CrystaLLMModel:
         print(f"returning result: {result}")
         return result
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    @exit()
+    def run_on_container_exit(self):
         print("exiting CrystaLLM...")
 
 
-@stub.local_entrypoint()
+@app.local_entrypoint()
 def main():
     # inp = {"comp": "Na1Cl1"}
     # inp = {"comp": "Na1Cl1", "z": 3}

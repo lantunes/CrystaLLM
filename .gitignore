@@ -162,3 +162,5 @@ out/
 
 scratches/
 saved_models/
+
+.DS_Store
