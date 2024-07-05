@@ -18,6 +18,7 @@ from crystallm import (
     RandomScorer,
     UCTSelector,
     ZMQScorer,
+    CHGNetScorer,
 )
 
 
@@ -37,7 +38,7 @@ class MCTSDefaults:
     bond_length_acceptability_cutoff: float = 1.0
     reward_k: float = 2.0  # the reward constant
     mcts_out_dir: str = "mcts"  # path to the directory where generated CIF files will be stored
-    scorer: str = "zmq"  # supported values: 'zmq', 'random'
+    scorer: str = "zmq"  # supported values: 'zmq', 'random', `CHGnet`
     scorer_host: str = "localhost"  # required if `scorer` is 'zmq'
     scorer_port: int = 5555  # required if `scorer` is 'zmq'
     use_context_sensitive_tree_builder: bool = True
@@ -46,6 +47,8 @@ class MCTSDefaults:
     n_space_groups: int = 0
     bypass_only_child: bool = False
     n_rollouts: int = 1  # the number of rollouts to perform per simulation
+    scorer_device: str = "cpu" #required, if using `CHGnet`, valida values are: `cpu` and `cuda`
+    chgnet_model_name: str = "0.3.0" #reqruied if `scorer` is `CHGnet`
 
 
 if __name__ == "__main__":
@@ -93,6 +96,9 @@ if __name__ == "__main__":
         cif_scorer = ZMQScorer(host=C.scorer_host, port=C.scorer_port)
     elif C.scorer == "random":
         cif_scorer = RandomScorer()
+    elif C.scorer == "CHGNet":
+        scorer_device = "cuda:1" if "cuda" in C.scorer_device else "cpu"
+        cif_scorer = CHGNetScorer(host_device=C.device, scorer_device=scorer_device, model_name=C.chgnet_model_name)
     else:
         raise Exception(f"unsupported scorer: {C.scorer}")
 
