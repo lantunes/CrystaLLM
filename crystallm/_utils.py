@@ -9,6 +9,8 @@ from pymatgen.io.cif import CifBlock, CifParser
 from pymatgen.symmetry.groups import SpaceGroup
 from pymatgen.core.operations import SymmOp
 from pymatgen.io.ase import AseAtomsAdaptor
+# from periodictable import elements
+from pymatgen.core.periodic_table import Element
 
 def get_unit_cell_volume(a, b, c, alpha_deg, beta_deg, gamma_deg):
     alpha_rad = math.radians(alpha_deg)
@@ -142,6 +144,19 @@ def extract_data_formula(cif_str):
         return match.group(1)
     raise Exception(f"could not find data_ in:\n{cif_str}")
 
+def extract_ads_bulk_symbols(cif_str):
+    match = re.search(r"data_([A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)_([A-Za-z0-9]+(?:_[0-9]+)?)", cif_str)
+    if match:
+        # Extract bulk_symbols and ads_symbols from the matched groups
+        bulk_symbols, ads_symbols = match.group(1), match.group(2)
+        # Remove any spaces from the extracted symbols
+        bulk_symbols = bulk_symbols.replace(" ", "")
+        ads_symbols = ads_symbols.replace(" ", "")
+        return bulk_symbols, ads_symbols
+    
+    # Raise an exception if no valid 'data_' line is found
+    raise Exception(f"Could not find data_ in:\n{cif_str}")
+
 
 def extract_formula_nonreduced(cif_str):
     match = re.search(r"_chemical_formula_sum\s+('([^']+)'|(\S+))", cif_str)
@@ -173,6 +188,107 @@ def semisymmetrize_cif(cif_str):
         flags=re.DOTALL
     )
 
+# def replace_data_formula_with_symbols(cif_str, bulk_symbols, ads_symbols):
+#     pattern_2 = r"(data_)(.*?)(\n)"
+#     try:
+#         modified_cif = re.sub(pattern_2, r'\1' + str(bulk_symbols) + '_' + str(ads_symbols) + r'\3', cif_str)
+#         return modified_cif
+#     except:
+#         raise Exception(f"Failed at conversion: {cif_str}")
+
+def get_electronegativity(symbol):
+    try:
+        return Element(symbol).X #elements.symbol(str(symbol)).electronegativity()
+    except:
+        return 0
+
+def sort_by_electronegativity(symbols):
+    return sorted(symbols, key=lambda x: get_electronegativity(x[0]))
+
+def get_string_from_symbols(bulk_symbols, ads_symbols):
+    # Remove unnecessary characters
+    bulk_symbols = bulk_symbols.replace(' ', '')
+    ads_symbols = ads_symbols.replace('*', '')
+    ads_symbols = ads_symbols.replace(' ', '')
+    
+    # Parse the elements and their amounts from the bulk and adsorbed symbols
+    bulk_elems = Composition(bulk_symbols).get_el_amt_dict().items()
+    ads_elems = Composition(ads_symbols).get_el_amt_dict().items()
+
+    # Create tuples of (symbol, count) for bulk and adsorbed elements
+    bulk_symbols = [(symbol, count) for symbol, count in bulk_elems]
+    ads_symbols = [(symbol, count) for symbol, count in ads_elems]
+
+    # Sort elements based on electronegativity
+    bulk_sorted = sort_by_electronegativity(bulk_symbols)
+    ads_sorted = sort_by_electronegativity(ads_symbols)
+
+    # Create the output string for bulk and adsorbed symbols
+    bulk_str = ''.join([f"{symbol}{int(count) if count > 1 else ''}" for symbol, count in bulk_sorted])
+    ads_str = ''.join([f"{symbol}{int(count) if count > 1 else ''}" for symbol, count in ads_sorted])
+    return bulk_str, ads_str
+
+def replace_data_formula_with_symbols(cif_str, bulk_symbols, ads_symbols):
+    pattern_formula = r"_chemical_formula_sum\s+'(.+?)'\n"
+    pattern_data = r"(data_)(.*?)(\n)"
+    
+    # preprocessing
+    # bulk_symbols = bulk_symbols.replace(' ', '')
+    # ads_symbols = ads_symbols.replace('*', '')
+    # #breakpoint()
+    # bulk_elems = Composition(bulk_symbols).get_el_amt_dict().items()
+    # ads_elems = Composition(ads_symbols).get_el_amt_dict().items()
+    # #breakpoint()
+    # match = re.search(pattern_formula, cif_str)
+    # if not match:
+    #     raise Exception("Chemical formula not found in CIF string")
+
+    # formula = match.group(1)
+    # element_counts = {}
+    # for element in re.findall(r'([A-Z][a-z]?)(\d*)', formula):
+    #     symbol, count = element
+    #     count = int(count) if count else 1
+    #     element_counts[symbol] = count
+
+    # bulk_symbols = [(symbol, element_counts.get(symbol, 1)) for symbol, _ in bulk_elems]
+    # ads_symbols = [(symbol, element_counts.get(symbol, 1)) for symbol, _ in ads_elems]
+
+    # bulk_sorted = sort_by_electronegativity(bulk_symbols)
+    # ads_sorted = sort_by_electronegativity(ads_symbols)
+
+    # bulk_str = ''.join([f"{symbol}{int(count)}" for symbol, count in bulk_sorted])
+    # ads_str = ''.join([f"{symbol}{int(count)}" for symbol, count in ads_sorted])
+    # # breakpoint()
+    # modified_cif = re.sub(pattern_data, r'\1' + bulk_str + '-' + ads_str + r'\3', cif_str)
+    
+    # if we decide to use adsorbate SMILES, we can use the following code
+    bulk_symbols = bulk_symbols.replace(' ', '')
+    
+    #breakpoint()
+    bulk_elems = Composition(bulk_symbols).get_el_amt_dict().items()
+    #breakpoint()
+    match = re.search(pattern_formula, cif_str)
+    if not match:
+        raise Exception("Chemical formula not found in CIF string")
+
+    formula = match.group(1)
+    element_counts = {}
+    for element in re.findall(r'([A-Z][a-z]?)(\d*)', formula):
+        symbol, count = element
+        count = int(count) if count else 1
+        element_counts[symbol] = count
+
+    bulk_symbols = [(symbol, element_counts.get(symbol, 1)) for symbol, _ in bulk_elems]
+
+    bulk_sorted = sort_by_electronegativity(bulk_symbols)
+
+    bulk_str = ''.join([f"{symbol}{int(count)}" for symbol, count in bulk_sorted])
+    ads_str = ads_symbols.replace('*', '')
+    
+    modified_cif = re.sub(pattern_data, r'\1' + bulk_str + '-' + ads_str + r'\3', cif_str)
+    
+    
+    return modified_cif
 
 def replace_data_formula_with_nonreduced_formula(cif_str, miller_index=None):
     pattern = r"_chemical_formula_sum\s+(.+)\n"

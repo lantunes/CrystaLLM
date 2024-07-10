@@ -83,7 +83,6 @@ if __name__ == "__main__":
                 y = model.generate(x, C.max_new_tokens, temperature=C.temperature, top_k=C.top_k)
 
                 generated = decode(y[0].tolist())
-
                 if C.target == "console":
                     print(generated)
                     print('---------------')
