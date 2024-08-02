@@ -48,6 +48,7 @@ from ._utils import (
     remove_atom_props_block,
     replace_data_formula_with_nonreduced_formula,
     replace_data_formula_with_symbols,
+    replace_data_formula_with_catberta_string,
     replace_symmetry_operators,
     round_numbers,
     semisymmetrize_cif,

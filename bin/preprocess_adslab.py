@@ -18,6 +18,7 @@ from crystallm import (
     semisymmetrize_cif,
     replace_data_formula_with_nonreduced_formula,
     replace_data_formula_with_symbols,
+    replace_data_formula_with_catberta_string,
     add_atomic_props_block,
     round_numbers,
     extract_formula_units,
@@ -43,7 +44,8 @@ def progress_listener(queue, n):
             break
 
 
-def augment_cif(progress_queue, task_queue, result_queue, id_to_miller_index, oxi, decimal_places):
+def augment_cif(progress_queue, task_queue, result_queue, 
+                id_to_ads_symbols, id_to_bulk_symbols, id_to_miller_index, oxi, decimal_places):
     augmented_cifs = []
     #breakpoint()
     while not task_queue.empty():
@@ -51,11 +53,13 @@ def augment_cif(progress_queue, task_queue, result_queue, id_to_miller_index, ox
             id, cif_str = task_queue.get_nowait()
         except Empty:
             break
-        
-        # miller_index = id_to_miller_index.get(id) if id_to_miller_index else None
-        bulk_symbols = id_to_bulk_symbols.get(id) if id_to_bulk_symbols else None
+
         ads_symbols = id_to_ads_symbols.get(id) if id_to_ads_symbols else None
-        # import pdb; pdb.set_trace()
+        bulk_symbols = id_to_bulk_symbols.get(id) if id_to_bulk_symbols else None
+        miller_index = id_to_miller_index.get(id) if id_to_miller_index else None
+        
+        
+        #import pdb; pdb.set_trace()
         try:
             formula_units = extract_formula_units(cif_str)
             # exclude CIFs with formula units (Z) = 0, which are erroneous
@@ -63,7 +67,9 @@ def augment_cif(progress_queue, task_queue, result_queue, id_to_miller_index, ox
                 raise Exception()
             #breakpoint()
             #cif_str = replace_data_formula_with_nonreduced_formula(cif_str, miller_index)
-            cif_str = replace_data_formula_with_symbols(cif_str, bulk_symbols, ads_symbols)
+            #cif_str = replace_data_formula_with_symbols(cif_str, bulk_symbols, ads_symbols)
+            cif_str = replace_data_formula_with_catberta_string(cif_str, ads_symbols, bulk_symbols, miller_index)
+            #breakpoint()
             cif_str = semisymmetrize_cif(cif_str)
             cif_str = add_atomic_props_block(cif_str, oxi)
             cif_str = round_numbers(cif_str, decimal_places=decimal_places)
@@ -112,17 +118,27 @@ if __name__ == "__main__":
     if meta_path:
         with open(meta_path, "rb") as f:
             meta = pickle.load(f)
-        #id_to_miller_index = {k: meta[k]['miller_index'] for k in meta.keys()}
-        id_to_bulk_symbols = {k: meta[k]['bulk_symbols'] for k in meta.keys()}
         id_to_ads_symbols = {k: meta[k]['ads_symbols'] for k in meta.keys()}
+        id_to_bulk_symbols = {k: meta[k]['bulk_symbols'] for k in meta.keys()}
+        id_to_miller_index = {k: meta[k]['miller_index'] for k in meta.keys()}
+        
+        
     else:
-        #id_to_miller_index = None    
-        id_to_bulk_symbols = None
         id_to_ads_symbols = None
+        id_to_bulk_symbols = None
+        id_to_miller_index = None    
+        
+        
+    #######################
     #breakpoint()
-    num = 0
-    modified_cif = replace_data_formula_with_symbols(cifs[num][1], id_to_bulk_symbols[cifs[num][0]], id_to_ads_symbols[cifs[num][0]])
-    breakpoint()
+    # num = 0
+    # #modified_cif = replace_data_formula_with_symbols(cifs[num][1], id_to_bulk_symbols[cifs[num][0]], id_to_ads_symbols[cifs[num][0]])
+    # modified_cif = replace_data_formula_with_catberta_string(cifs[num][1], 
+    #                                                          id_to_ads_symbols[cifs[num][0]], 
+    #                                                          id_to_bulk_symbols[cifs[num][0]],
+    #                                                          id_to_miller_index[cifs[num][0]])
+    # breakpoint()
+    ########################
     manager = mp.Manager()
     progress_queue = manager.Queue()
     task_queue = manager.Queue()
@@ -134,7 +150,8 @@ if __name__ == "__main__":
     watcher = mp.Process(target=progress_listener, args=(progress_queue, len(cifs),))
 
     processes = [mp.Process(target=augment_cif, args=(progress_queue, task_queue, result_queue, 
-                                                      id_to_bulk_symbols, id_to_ads_symbols, oxi, decimal_places))
+                                                       id_to_ads_symbols, id_to_bulk_symbols, id_to_miller_index, 
+                                                       oxi, decimal_places))
                  for _ in range(workers)]
     processes.append(watcher)
 
@@ -154,3 +171,4 @@ if __name__ == "__main__":
     print(f"saving data to {out_fname}...")
     with gzip.open(out_fname, "wb") as f:
         pickle.dump(modified_cifs, f, protocol=pickle.HIGHEST_PROTOCOL)
+    print('Completed!')

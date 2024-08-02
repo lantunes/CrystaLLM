@@ -228,6 +228,38 @@ def get_string_from_symbols(bulk_symbols, ads_symbols):
     ads_str = ''.join([f"{symbol}{int(count) if count > 1 else ''}" for symbol, count in ads_sorted])
     return bulk_str, ads_str
 
+
+def replace_data_formula_with_catberta_string(cif_str, ads_symbols, bulk_symbols, miller_index):
+    pattern_formula = r"_chemical_formula_sum\s+'(.+?)'\n"
+    pattern_data = r"(data_)(.*?)(\n)"
+
+    bulk_symbols = bulk_symbols.replace(' ', '')
+    bulk_elems = Composition(bulk_symbols).get_el_amt_dict().items()
+
+    match = re.search(pattern_formula, cif_str)
+    if not match:
+        raise Exception("Chemical formula not found in CIF string")
+
+    formula = match.group(1)
+    element_counts = {}
+    for element in re.findall(r'([A-Z][a-z]?)(\d*)', formula):
+        symbol, count = element
+        count = int(count) if count else 1
+        element_counts[symbol] = count
+
+    bulk_symbols = [(symbol, element_counts.get(symbol, 1)) for symbol, _ in bulk_elems]
+
+    bulk_sorted = sort_by_electronegativity(bulk_symbols)
+
+    bulk_str = ''.join([f"{symbol}{int(count)}" for symbol, count in bulk_sorted])
+    ads_str = ads_symbols.replace('*', '')
+    miller_str = str(miller_index).replace(',', '')
+    
+    modified_cif = re.sub(pattern_data, r'\1' + ads_str + '</s>' + bulk_str + ' ' + miller_str + r'\3', cif_str)
+    
+    
+    return modified_cif
+
 def replace_data_formula_with_symbols(cif_str, bulk_symbols, ads_symbols):
     pattern_formula = r"_chemical_formula_sum\s+'(.+?)'\n"
     pattern_data = r"(data_)(.*?)(\n)"
