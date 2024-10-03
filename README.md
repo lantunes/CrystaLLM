@@ -11,6 +11,8 @@ model definition, training, and inference code in this repository is adapted fro
 
 <img src="resources/crystallm-github.png" width="100%"/>
 
+[![DOI](https://zenodo.org/badge/619181533.svg)](https://doi.org/10.5281/zenodo.13883399)
+
 ## Table of Contents
 
 - [Getting Started](#getting-started)
