@@ -7,13 +7,15 @@ from dataclasses import dataclass
 from typing import Union
 import math
 import time
+import pickle
+from contextlib import nullcontext
 
 from crystallm import parse_config
 from omegaconf import OmegaConf
 import numpy as np
 import torch
-import pickle
-from contextlib import nullcontext
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
 
 from crystallm import (
     GPT,
@@ -34,6 +36,7 @@ class TrainDefaults:
 
     # data
     dataset: str = ""  # the path to the folder containing the .bin files with encoded tokens
+    # reduce gradient accumulation steps accordingly for multi-GPU training
     gradient_accumulation_steps: int = 40  # used to simulate larger batch sizes
     batch_size: int = 64  # if gradient_accumulation_steps > 1, this is the micro-batch size
     block_size: int = 2048  # context of up to `block_size` previous characters
@@ -65,6 +68,17 @@ class TrainDefaults:
     compile: bool = True  # use PyTorch 2.0 to compile the model to be faster
     underrep_p: float = 0.0
     validate: bool = False  # whether to evaluate the model using the validation set
+    backend: str = "nccl"  # backend for DDP, "nccl", "gloo", etc.
+    seed: int = 1337  # the seed to use for torch.manual_seed
+
+
+@dataclass
+class LocalConfig:
+    device: str = ""
+    is_master_process: bool = True
+    is_ddp: bool = False
+    seed_offset: int = 0
+    ddp_local_rank: int = 0
 
 
 def read_start_indices(
@@ -88,19 +102,32 @@ def read_start_indices(
     return start_indices
 
 
-if __name__ == "__main__":
-    C = parse_config(TrainDefaults)
+def get_local_config(backend, device):
+    # by default, we are running on a single gpu, and one process
+    ddp_rank = int(os.environ.get("RANK", -1))
+    lc = LocalConfig(device=device, is_ddp=ddp_rank != -1)
+    if lc.is_ddp:
+        init_process_group(backend=backend)
+        lc.ddp_local_rank = int(os.environ["LOCAL_RANK"])
+        lc.device = f"cuda:{lc.ddp_local_rank}"
+        torch.cuda.set_device(lc.device)
+        lc.is_master_process = ddp_rank == 0  # this process will do logging, checkpointing etc.
+        lc.seed_offset = ddp_rank  # each process gets a different seed
+    return lc
 
-    print("Using configuration:")
-    print(OmegaConf.to_yaml(C))
 
-    print(f"Creating {C.out_dir}...")
-    os.makedirs(C.out_dir, exist_ok=True)
+def main(C):
+    L = get_local_config(C.backend, C.device)
+    print(f"DDP: {L.is_ddp}")
 
-    torch.manual_seed(1337)
+    if L.is_master_process:
+        print(f"Creating {C.out_dir}...")
+        os.makedirs(C.out_dir, exist_ok=True)
+
+    torch.manual_seed(C.seed + L.seed_offset)
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
-    device_type = "cuda" if "cuda" in C.device else "cpu"  # for later use in torch.autocast
+    device_type = "cuda" if "cuda" in L.device else "cpu"  # for later use in torch.autocast
     # note: float16 data type will automatically use a GradScaler
     ptdtype = {"float32": torch.float32, "bfloat16": torch.bfloat16, "float16": torch.float16}[C.dtype]
     ctx = nullcontext() if device_type == "cpu" else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
@@ -149,9 +176,9 @@ if __name__ == "__main__":
 
         if device_type == "cuda":
             # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-            x, y = x.pin_memory().to(C.device, non_blocking=True), y.pin_memory().to(C.device, non_blocking=True)
+            x, y = x.pin_memory().to(L.device, non_blocking=True), y.pin_memory().to(L.device, non_blocking=True)
         else:
-            x, y = x.to(C.device), y.to(C.device)
+            x, y = x.to(L.device), y.to(L.device)
         return x, y
 
     iter_num = 0
@@ -177,7 +204,7 @@ if __name__ == "__main__":
     elif C.init_from == "resume":
         print(f"Resuming training from {C.out_dir}...")
         ckpt_path = os.path.join(C.out_dir, "ckpt.pt")
-        checkpoint = torch.load(ckpt_path, map_location=C.device)
+        checkpoint = torch.load(ckpt_path, map_location=L.device)
         checkpoint_model_args = checkpoint["model_args"]
         # force these config attributes to be equal otherwise we can't even resume training;
         #  the rest of the attributes (e.g. dropout) can stay as desired
@@ -199,7 +226,7 @@ if __name__ == "__main__":
     if C.block_size < model.config.block_size:
         model.crop_block_size(C.block_size)
         model_args["block_size"] = C.block_size  # so that the checkpoint will have the right value
-    model.to(C.device)
+    model.to(L.device)
 
     # initialize a GradScaler; if enabled=False scaler is a no-op
     scaler = torch.cuda.amp.GradScaler(enabled=(C.dtype == "float16"))
@@ -210,8 +237,11 @@ if __name__ == "__main__":
 
     if C.compile:
         print("Compiling the model (takes a ~minute)...")
-        unoptimized_model = model
         model = torch.compile(model)  # requires PyTorch 2.0
+
+    # wrap model into DDP container
+    if L.is_ddp:
+        model = DDP(model, device_ids=[L.ddp_local_rank])
 
     # helps estimate an arbitrarily accurate loss over either split using many batches
     @torch.no_grad()
@@ -247,6 +277,7 @@ if __name__ == "__main__":
     X, Y = get_batch("train")
     t0 = time.time()
     local_iter_num = 0  # number of iterations in the lifetime of this process
+    raw_model = model.module if L.is_ddp else model  # unwrap DDP container if needed
     running_mfu = -1.0
     while True:
 
@@ -256,7 +287,7 @@ if __name__ == "__main__":
             param_group["lr"] = lr
 
         # evaluate the loss on train/val sets and write checkpoints
-        if iter_num % C.eval_interval == 0:
+        if iter_num % C.eval_interval == 0 and L.is_master_process:
             if C.validate:
                 losses = estimate_loss()
                 print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
@@ -264,7 +295,7 @@ if __name__ == "__main__":
                 best_val_loss = losses["val"] if C.validate else 0.
                 if iter_num > 0:
                     checkpoint = {
-                        "model": model.state_dict(),
+                        "model": raw_model.state_dict(),
                         "optimizer": optimizer.state_dict(),
                         "model_args": model_args,
                         "iter_num": iter_num,
@@ -279,6 +310,12 @@ if __name__ == "__main__":
         # forward backward update, with optional gradient accumulation to simulate larger batch size
         # and using the GradScaler if data type is float16
         for micro_step in range(C.gradient_accumulation_steps):
+            if L.is_ddp:
+                # In DDP training we only need to sync gradients at the last micro step.
+                # The official way to do this is with model.no_sync() context manager, but
+                # this bloats the code and forces us to repeat code. Looking at the source
+                # of that context manager, it just toggles this variable:
+                model.require_backward_grad_sync = (micro_step == C.gradient_accumulation_steps - 1)
             with ctx:
                 logits, loss = model(X, Y)
             # immediately async prefetch next batch while model is doing the forward pass on the GPU
@@ -299,10 +336,10 @@ if __name__ == "__main__":
         t1 = time.time()
         dt = t1 - t0
         t0 = t1
-        if iter_num % C.log_interval == 0:
+        if iter_num % C.log_interval == 0 and L.is_master_process:
             lossf = loss.item()  # loss as float. note: this is a CPU-GPU sync point
             if local_iter_num >= 5:  # let the training loop settle a bit
-                mfu = model.estimate_mfu(C.batch_size * C.gradient_accumulation_steps, dt)
+                mfu = raw_model.estimate_mfu(C.batch_size * C.gradient_accumulation_steps, dt)
                 running_mfu = mfu if running_mfu == -1.0 else 0.9 * running_mfu + 0.1 * mfu
             print(f"iter {iter_num}: loss {lossf:.4f}, time {dt * 1000:.2f}ms, mfu {running_mfu * 100:.2f}%")
         iter_num += 1
@@ -311,3 +348,15 @@ if __name__ == "__main__":
         # termination conditions
         if iter_num > C.max_iters:
             break
+
+    if L.is_ddp:
+        destroy_process_group()
+
+
+if __name__ == "__main__":
+    C = parse_config(TrainDefaults)
+
+    print("Using configuration:")
+    print(OmegaConf.to_yaml(C))
+
+    main(C)
