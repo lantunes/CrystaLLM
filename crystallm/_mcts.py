@@ -154,7 +154,6 @@ class MCTSEvaluator:
             print(f"exception while scoring: {e}")
             print(traceback.format_exc())
             return -1.0
-
         if math.isnan(score):
             print(f"reward cannot be computed as score is nan")
             return -1.0

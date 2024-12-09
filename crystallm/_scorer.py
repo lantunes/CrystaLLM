@@ -70,3 +70,41 @@ class ZMQScorer(CIFScorer):
 
         except zmq.Again as e:
             raise TimeoutError("ZeroMQ request timed out") from e
+
+class CHGNetScorer(CIFScorer):
+
+    def __init__(self,host_device, scorer_device, model_name):
+        """
+        A CIF scorer which returns a score obtained from another cuda process.
+        
+        :param host_device: the crystaLLM device name
+        :param scorer_device: the scorer device name
+        
+        TO-DO: upload a script of energy evaluator and execute it at run-time
+        """
+        from chgnet.model.model import CHGNet  
+        self._host_device = host_device
+        self._scorer_device = scorer_device
+        print(f"CrystaLLM using: {host_device}")
+        print(f"Pytorch Scorer using: {scorer_device}")
+        print(f"CHGNET model name: {model_name}")
+        self._chgnet = CHGNet.load(model_name,use_device=scorer_device)
+
+    def score(self, cif: str) -> float:
+        from pymatgen.io.cif import CifParser
+        message = cif
+        try:
+            try:
+                cif_parser = CifParser.from_str(cif_string = message)
+                structure = cif_parser.parse_structures(primitive = True)
+            except Exception as e:
+                cif_parser = CifParser.from_str(cif_string = message)
+                structure = cif_parser.parse_structures(primitive = False)
+            prediction = self._chgnet.predict_structure(structure)
+            reply = f"{prediction['e']}"
+
+        except Exception as ex:
+            print(f"exception making prediction: {ex}")
+            reply = "nan"
+        print(f"sending reply: {reply}")
+        return float(reply)
