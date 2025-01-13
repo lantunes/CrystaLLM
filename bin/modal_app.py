@@ -12,7 +12,7 @@ from lib import get_cif_tokenizer, bond_length_reasonableness_score, is_formula_
     replace_symmetry_operators, remove_atom_props_block
 
 import modal
-from modal import Image, App, Mount, method, enter, exit
+from modal import Image, App, method, enter, exit
 
 image = (
     Image.debian_slim(python_version="3.9")
@@ -27,6 +27,8 @@ image = (
         "pyzmq==25.1.1",
     )
 )
+image = image.add_local_dir("./modal_app_config", remote_path="/root")
+image = image.add_local_file("./lib/spacegroups.txt", remote_path="/root/lib/spacegroups.txt")
 app = App(
     name="CrystaLLM",
     image=image,
@@ -35,10 +37,6 @@ app = App(
 
 @app.cls(
     volumes={"/crystallm_volume": modal.Volume.from_name("crystallm-volume_2")},
-    mounts=[
-        Mount.from_local_dir("./modal_app_config", remote_path="/root"),
-        Mount.from_local_file("./lib/spacegroups.txt", remote_path="/root/lib/spacegroups.txt"),
-    ],
     gpu="T4",
     container_idle_timeout=60,
     timeout=60,
