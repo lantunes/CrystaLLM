@@ -26,6 +26,7 @@ image = (
         "pymatgen==2023.3.23",
         "pyzmq==25.1.1",
     )
+    .add_local_python_source("nanoGPT", "lib")
 )
 image = image.add_local_dir("./modal_app_config", remote_path="/root")
 image = image.add_local_file("./lib/spacegroups.txt", remote_path="/root/lib/spacegroups.txt")
@@ -38,7 +39,7 @@ app = App(
 @app.cls(
     volumes={"/crystallm_volume": modal.Volume.from_name("crystallm-volume_2")},
     gpu="T4",
-    container_idle_timeout=60,
+    scaledown_window=60,
     timeout=60,
 )
 class CrystaLLMModel:
@@ -275,9 +276,9 @@ class CrystaLLMModel:
 def main():
     # inp = {"comp": "Na1Cl1"}
     # inp = {"comp": "Na1Cl1", "z": 3}
-    # inp = {"comp": "Na1Cl1", "z": 3, "sg": "Pm-3m"}
+    inp = {"comp": "Na1Cl1", "z": 3, "sg": "Pm-3m"}
     # inp = {"comp": "Na1Cl1", "sg": "R-3m"}
-    inp = {"comp": "CuSeTeZn"}
+    # inp = {"comp": "CuSeTeZn"}
 
     model = CrystaLLMModel()
     model.generate.remote(inputs=inp)
