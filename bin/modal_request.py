@@ -1,11 +1,13 @@
 import modal
 import time
 
+if __name__ == "__main__":
+    CrystaLLMModel = modal.Cls.from_name("CrystaLLM", "CrystaLLMModel")
 
-if __name__ == '__main__':
-    generate = modal.Function.from_name("CrystaLLM", "CrystaLLMModel.generate")
+    model = CrystaLLMModel()
+
     st = time.time()
-    result = generate.remote(inputs={"comp": "Na1Cl1"})
+    result = model.generate.remote(inputs={"comp": "Na1Cl1"})
     print(f"elapsed: {time.time() - st:.3f} s")
 
     print(result)
